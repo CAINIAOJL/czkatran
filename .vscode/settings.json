@@ -1,0 +1,26 @@
+{
+    "files.associations": {
+        "decap.bpf.h": "c",
+        "balancer_consts.h": "c",
+        "balancer_structs.h": "c",
+        "ip.h": "c",
+        "bpf_helpers.h": "c",
+        "bpf_endian.h": "c",
+        "bpf_tracing.h": "c",
+        "ratio": "c",
+        "charconv": "cpp",
+        "chrono": "cpp",
+        "optional": "cpp",
+        "format": "cpp",
+        "system_error": "cpp",
+        "array": "cpp",
+        "functional": "cpp",
+        "tuple": "cpp",
+        "type_traits": "cpp",
+        "utility": "cpp",
+        "compare": "cpp",
+        "variant": "cpp",
+        "bpf_helper_defs.h": "c",
+        "bpf.h": "c"
+    }
+}
