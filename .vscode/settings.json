@@ -21,6 +21,9 @@
         "compare": "cpp",
         "variant": "cpp",
         "bpf_helper_defs.h": "c",
-        "bpf.h": "c"
+        "bpf.h": "c",
+        "string": "c",
+        "string_view": "c",
+        "span": "c"
     }
 }

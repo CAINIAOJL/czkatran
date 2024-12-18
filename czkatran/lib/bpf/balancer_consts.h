@@ -27,6 +27,20 @@
 
 #define XDP_ADJUST_HEAD_FUNC bpf_xdp_adjust_head
 
+//FLAGS
+#define F_ICMP (1 << 0)
+#define F_SYN_SET (1 << 1)
+
+
+
+
+#ifndef GUE_DPORT
+#define GUE_DPORT 6080
+#endif
+
+//GUE 变体 1 使用内部数据包的前四位作为伪报头，我们使用这四位中的最后两位来区分 v4 和 v6。有关详细信息，请参阅 RFC
+#define GUEV1_IPV6MASK 0x30 // 0011 0000
+
 //XDP_ABORTED：表示 XDP 程序处理数据包时遇到错误或异常。
 
 //XDP_DROP：在网卡驱动层直接将该数据包丢掉，通常用于过滤无效或不需要的数据包，如实现 DDoS 防护时，丢弃恶意数据包。

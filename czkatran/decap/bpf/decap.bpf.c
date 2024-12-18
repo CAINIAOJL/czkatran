@@ -13,6 +13,7 @@
 #include "czkatran/lib/bpf/balancer_consts.h"
 #include "czkatran/lib/bpf/balancer_structs.h"
 #include "czkatran/lib/bpf/packet_encap.h"
+#include "czkatran/lib/bpf/packet_parse.h"
 
 //decap 解封装
 //encp 封装
@@ -21,7 +22,17 @@
 #define DECAP_PROG_SEC "xdp"
 #endif
 
-//~
+/**
+ * @brief 解析L3层头部
+ * @param packet 包描述符
+ * @param protocol 协议类型
+ * @param packet_size 包大小
+ * @param data 数据起始地址
+ * @param off 偏移量
+ * @param data_end 数据结束地址
+ * @param is_ipv6 是否是ipv6
+ * @return 处理结果~
+ */
 __always_inline static int process_l3_header(struct packet_description *packet,
                                             __u8 *protocol,
                                             __u16 *packet_size,
@@ -79,6 +90,87 @@ __always_inline static int process_l3_header(struct packet_description *packet,
 }
 
 //~
+#ifdef INLINE_DECAP_GUE
+__always_inline static int process_encaped_gue_packet(void ** data,
+                                                      void ** data_end,
+                                                      struct xdp_md *xdp,
+                                                      bool is_ipv6,
+                                                      bool *inner_ipv6) {
+    int offset = 0;
+    if(is_ipv6) {
+        __u8 v6 = 0;
+        offset = sizeof(struct ethhdr) + sizeof(struct ipv6hdr) + sizeof(struct udphdr);
+        if(*data + offset + 1 > *data_end) {
+            return XDP_DROP;
+        }
+        //指向GUE header
+        v6 = ((__u8*)(*data))[offset];
+        v6 &= GUEV1_IPV6MASK;
+        *inner_ipv6 = v6 ? true : false;
+        if(v6) {
+            //inner packet是ipv6类型的数据包
+            if(!gue_decap_v6(xdp, data, data_end, false)) {
+                return XDP_DROP;
+            }
+        } else {
+            //inner packet是ipv4类型的数据包
+            if(!gue_decap_v6(xdp, data, data_end, true)) {
+                return XDP_DROP;
+            }
+        }
+    } else {
+        offset = sizeof(struct ethhdr) + sizeof(struct iphdr) + sizeof(struct udphdr);
+        if(*data + offset > *data_end) {
+            return XDP_DROP;
+        }
+        if(!gue_decap_v4(xdp, data, data_end)) {
+            return XDP_DROP;
+        }
+    }
+    return FURTHER_PROCESSING;
+}
+#endif //INLINE_DECAP_GUE
+
+__always_inline static void validate_tpr_server_id(void *data,
+                                                   __u64 off, 
+                                                   void *data_end, 
+                                                   bool is_ipv6, 
+                                                   struct xdp_md *xdp, 
+                                                   struct decap_stats *data_stats) {
+    __u16 inner_packet_size= 0;
+    struct packet_description inner_packet = {}; //内嵌的数据包描述符
+    __u8 inner_protocol = 0;
+    if(process_l3_header(&inner_packet, &inner_protocol, &inner_packet_size, data, off, data_end, is_ipv6) >= 0) {
+        return;
+    }
+
+    if(inner_protocol != IPPROTO_TCP) {
+        return;
+    }
+    if(!parse_tcp(data, data_end, is_ipv6, &inner_packet)) {
+        return;
+    }
+
+    if(!(inner_packet.flags & F_SYN_SET)) {
+        __u32 s_key = 0;
+        __u32 *server_id_host = bpf_map_lookup_elem(&tpr_server_id, &s_key);
+        if(server_id_host && *server_id_host > 0) {
+            __u32 server_id = 0;
+            tcp_hdr_opt_lookup_server_id(xdp, is_ipv6, &server_id);
+            if(server_id > 0) {
+                data_stats->tpr_total += 1;
+                if(server_id != *server_id_host) {
+                    data_stats->tpr_misrouted += 1;
+                }
+            }
+        }
+    }
+}
+
+
+
+
+//~
 #ifdef DECAP_STRICT_DESTINATION
 __always_inline static int check_decap_dst(struct packet_description *packet, 
                                           bool is_ipv6) {
@@ -109,7 +201,17 @@ __always_inline static int check_decap_dst(struct packet_description *packet,
 }
 #endif //decap_strict_destination
 
-
+/**
+ * @brief 解封装ipip数据包
+ * @param data 数据起始地址
+ * @param data_end 数据结束地址
+ * @param is_ipv6 是否是ipv6
+ * @param packet 包描述符
+ * @param protocol 协议类型
+ * @param packet_size 包大小
+ * @param off 偏移量
+ * @return 处理结果~
+ */
 __always_inline static int process_encap_ipip_packet(void **data, 
                                                      void **data_end, 
                                                      struct xdp_md *xdp,
@@ -150,9 +252,17 @@ __always_inline static int process_encap_ipip_packet(void **data,
 }
 
 
-
-
-
+/**
+ * @brief 解析数据包的开始
+ * @param data 数据起始地址
+ * @param data_end 数据结束地址
+ * @param is_ipv6 是否是ipv6
+ * @param packet 包描述符
+ * @param protocol 协议类型
+ * @param packet_size 包大小
+ * @param off 偏移量
+ * @return 处理结果~
+ */
 //__attribute__((_always_inline_))
 __always_inline static int process_packet(void *data,
                                          __u64 off, 
@@ -184,7 +294,7 @@ __always_inline static int process_packet(void *data,
     }
     //如果是隧道数据包，或者是ipv协议的以太帧
     if (protocol == IPPROTO_IPIP || protocol == IPPROTO_IPV6) {
-#ifdef DECAP_STRICT_DESTINATION
+#ifdef DECAP_STRICT_DESTINATION //decap_strict_destination
         ret = check_decap_dst(&packet, is_ipv6);
         if(ret >= 0) {
             return ret;
@@ -204,10 +314,33 @@ __always_inline static int process_packet(void *data,
     }
 #ifdef INLINE_DECAP_GUE
     else if (protocol == IPPROTO_UDP) {
-        if (parse_udp(data, data_end, is_ipv6, &packet)) {
-            
+        if (!parse_udp(data, data_end, is_ipv6, &packet)) {
+            return XDP_PASS;
+        }
+        if(packet.flow.port16[1] == bpf_htons(GUE_DPORT)) {
+#ifdef DECAP_STRICT_DESTINATION
+            ret = check_decap_dst(&packet, is_ipv6);
+            if(ret >= 0) {
+                return ret;
+            }
+#endif
+
+            if(is_ipv6) {
+                data_stats->decap_v6 += 1;
+            } else {
+                data_stats->decap_v4 += 1;
+            }
+            data_stats->total += 1;
+            bool inner_ipv6 = false;
+            ret = process_encaped_gue_packet(&data, &data_end, ctx, is_ipv6, &inner_ipv6);
+            if (ret >= 0) {
+                return ret;
+            }
+            validate_tpr_server_id(data, off, data_end, inner_ipv6, ctx, data_stats);
+
         }
     }
+#endif
 }
 
 

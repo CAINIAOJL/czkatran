@@ -15,7 +15,7 @@ struct flow_key {
     };
     union {
         __u32 ports;
-        __u16 port16[2];
+        __u16 port16[2]; //0 source port, 1 dest port
     };
     __u8 proto;
 };
