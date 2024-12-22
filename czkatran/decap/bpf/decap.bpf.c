@@ -16,7 +16,7 @@
 #include "czkatran/lib/bpf/packet_parse.h"
 
 //decap 解封装
-//encp 封装
+//encap 封装
 
 #ifndef DECAP_PROG_SEC
 #define DECAP_PROG_SEC "xdp"
@@ -227,7 +227,7 @@ __always_inline static int process_encap_ipip_packet(void **data,
             if ((*data + sizeof(struct ethhdr) + sizeof(struct ipv6hdr)) > *data_end) {
                 return XDP_DROP;
             }
-            if (!decap_ipv6(xdp, data, data_end, true)) {
+            if (!decap_v6(xdp, data, data_end, true)) {
                 return XDP_DROP;
             }
         } else {
@@ -292,7 +292,7 @@ __always_inline static int process_packet(void *data,
     if (!data_stats) {
         return XDP_PASS;
     }
-    //如果是隧道数据包，或者是ipv协议的以太帧
+    //如果是隧道数据包，或者是ipv6协议的以太帧
     if (protocol == IPPROTO_IPIP || protocol == IPPROTO_IPV6) {
 #ifdef DECAP_STRICT_DESTINATION //decap_strict_destination
         ret = check_decap_dst(&packet, is_ipv6);

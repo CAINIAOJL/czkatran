@@ -38,6 +38,12 @@ struct real_definition {
 };
 
 
+struct hdr_opt_state {
+    __u32 server_id;
+    __u8 bytes_offset;
+    __u8 hdr_bytes_remaining;
+};
+
 
 
 

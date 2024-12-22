@@ -24,6 +24,7 @@
         "bpf.h": "c",
         "string": "c",
         "string_view": "c",
-        "span": "c"
+        "span": "c",
+        "random": "cpp"
     }
 }

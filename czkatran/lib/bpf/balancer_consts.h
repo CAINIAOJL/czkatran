@@ -52,4 +52,29 @@
 //XDP_REDIRECT：数据包重定向到其他的网卡或 CPU，结合 AF_XDP[2]可以将数据包直接送往用户空间。
 
 
+#if defined(TCP_SERVER_ID_ROUTING) || defined(DECAP_TPR_STATS)
+//原本的tcp中的option端的格式为：
+// kind/type (1 byte) | length (1 byte) | value 
+//cap： the structure of header-option to save server_id
+// kind/type (1 byte) | length (1 byte) | server_id (4 bytes)
+
+#define TCP_HDR_OPT_KIND_TPR 0xB7
+
+#define TCP_HDR_OPT_LEN_TPR 6 // = 1 + 1 + 4
+
+#define TCP_HDR_OPT_MAX_OPT_CHECKS 15
+
+#define TCP_OPT_EOF 0
+
+#define TCP_OPT_NOP 1
+
+#endif // TCP_SERVER_ID_ROUTING || DECAP_TPR_STATS
+
+
+
+
+
+
+
+
 #endif // BALANCER_CONSTS_H
