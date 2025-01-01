@@ -288,7 +288,7 @@ __always_inline static int process_packet(void *data,
     }
     protocol = packet.flow.proto;
 
-    data_stats = bpf_map_lookup_elem(&decap_cunters, &key);
+    data_stats = bpf_map_lookup_elem(&decap_counters, &key);
     if (!data_stats) {
         return XDP_PASS;
     }

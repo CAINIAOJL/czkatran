@@ -23,7 +23,7 @@ struct {
     __uint(max_entries, DECAP_STATS_MAP_SIZE);
     __type(key, __u32); //vip 虚拟IP地址
     __type(value, struct decap_stats);  //stats 统计信息
-} decap_cunters SEC(".maps");
+} decap_counters SEC(".maps");
 
 struct {
     __uint(type, BPF_MAP_TYPE_ARRAY);
