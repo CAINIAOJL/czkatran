@@ -1,0 +1,1 @@
+g++ -o base64test Base64HelpersTest.cc Base64Helpers.cc -lgtest -lglog -lpthread -lfolly -lfmt

@@ -83,7 +83,53 @@ static int NetlinkRoudtrip(const NetlinkMessage& msg) {
     return ret;
 }
 
+int BaseBpfAdapter:: textXdpProg(
+            const int prog_fd,
+            const int repeat,
+            void* data,
+            uint32_t data_size,
+            void* data_out,
+            uint32_t* size_out = nullptr,
+            uint32_t* retval = nullptr,
+            uint32_t* duration = nullptr,
+            void* ctx_in = nullptr,
+            uint32_t ctx_in_size = 0,
+            void* ctx_out = nullptr,
+            uint32_t* ctx_out_size = nullptr
+        )
+{
+    LIBBPF_OPTS(
+        bpf_test_run_opts,
+        attr,
+        .data_in = data,
+        .data_out = data_out,
+        .data_size_in = data_size,
+        .ctx_in = ctx_in,
+        .ctx_out = ctx_out,
+        .ctx_size_in = ctx_in_size,
+        .repeat = repeat
+        );
 
+    auto ret = bpf_prog_test_run_opts(prog_fd, &attr);
+
+    if(size_out) {
+        *size_out = attr.data_size_out;
+    }
+
+    if(retval) {
+        *retval = attr.retval;
+    }
+
+    if(duration) {
+        *duration = attr.duration;
+    }
+
+    if(ctx_out_size) {
+        *ctx_out_size = attr.ctx_size_out;
+    }
+
+    return ret;
+}
 
 
 
@@ -124,6 +170,15 @@ int BaseBpfAdapter:: getInterfaceIndexByName(const std::string& interface_name) 
     return ifindex;
 }
 
+int BaseBpfAdapter:: getInterfaceIndex(const std::string& interface_name) {
+    auto ifindex = if_nametoindex(interface_name.c_str());
+    if(!ifindex) {
+        VLOG(1) << " can not get ifindex for interface: " << interface_name;
+        return 0;
+    }
+    return ifindex;
+}
+
 int BaseBpfAdapter:: detachXdpProgram(const std::string& interface_name, uint32_t flags) {
     auto ifindex = if_nametoindex(interface_name.c_str());
     if(!ifindex) {
@@ -132,6 +187,10 @@ int BaseBpfAdapter:: detachXdpProgram(const std::string& interface_name, uint32_
     }
     return modifyXdpProg(-1, ifindex, flags);
 
+}
+
+int BaseBpfAdapter:: detachXdpProgram(const int ifindex, uint32_t flags) {
+    return modifyXdpProg(-1, ifindex, flags);
 }
 
 int BaseBpfAdapter:: getPinnedBpfObject(const std::string& path) {
@@ -177,5 +236,36 @@ int BaseBpfAdapter:: bpfMapLookUpElement(int map_fd, void* key, void *value) {
     }
     return bpferror; // != 0
 }
+
+int BaseBpfAdapter:: deleteTcBpfFilter(
+            const int prog_fd,
+            const unsigned int ifindex,
+            const std::string& bpf_name,
+            const uint32_t priority,
+            const int direction = TC_INGRESS,
+            const uint32_t handle = 0
+        )
+{
+    int cmd = RTM_DELTFILTER;
+    unsigned int flags = 0;
+    return modifyTcBpfFilter(cmd, flags, priority, prog_fd, ifindex, bpf_name, direction, handle);
+}
+
+int BaseBpfAdapter:: modifyTcBpfFilter(
+            const int cmd,
+            const unsigned int flags,
+            const uint32_t priority,
+            const int prog_fd,
+            const unsigned int ifindex,
+            const std::string& bpf_name,
+            const int direction = TC_INGRESS,
+            const uint32_t handle = 0
+        )
+{
+    unsigned int seq = static_cast<unsigned int>(std::time(nullptr));
+    auto msg = NetlinkMessage::TC(seq, cmd, flags, priority, prog_fd, ifindex, bpf_name, direction, handle);
+    return NetlinkRoudtrip(msg);
+}
+
 
 }

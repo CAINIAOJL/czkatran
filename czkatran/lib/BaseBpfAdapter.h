@@ -44,9 +44,10 @@ class BaseBpfAdapter {
          * @param bool use_names ---是否使用名称，默认为false
          * @return int ---0表示成功，其他表示失败
          */
-        virtual int loadBpfProg(const std::string& bpf_prog,
-                       const bpf_prog_type type = BPF_PROG_TYPE_UNSPEC,
-                       bool use_names = false);
+        virtual int loadBpfProg(
+            const std::string& bpf_prog,
+            const bpf_prog_type type = BPF_PROG_TYPE_UNSPEC,
+            bool use_names = false);
         
         virtual int loadBpfProg(
             const char *buf,
@@ -61,8 +62,9 @@ class BaseBpfAdapter {
          * @param bpf_prog_type type ---程序类型，默认为BPF_PROG_TYPE_UNSPEC
          * @return int ---0表示成功，其他表示失败
          */
-        virtual int reloadBpfProg(const std::string& bpf_prog,
-                         const bpf_prog_type type = BPF_PROG_TYPE_UNSPEC);
+        virtual int reloadBpfProg(
+            const std::string& bpf_prog,
+            const bpf_prog_type type = BPF_PROG_TYPE_UNSPEC);
         
         /**
          * @brief 通过map的name找到fd套接字
@@ -77,8 +79,9 @@ class BaseBpfAdapter {
          * @param string mapName ---map名称
          * @return bool ---true表示存在，false表示不存在
          */
-        virtual bool isMapInProg(const std::string& progName, 
-                                 const std::string& mapName);
+        virtual bool isMapInProg(
+            const std::string& progName, 
+            const std::string& mapName);
 
         /**
          * @brief 设置map到inner_Map_prototypes_中
@@ -86,8 +89,9 @@ class BaseBpfAdapter {
          * @param int fd ---map的fd
          * @return int ---0表示成功，其他表示失败
          */
-        virtual int setInnerMapProtoType(const std::string& name, 
-                                         int fd);
+        virtual int setInnerMapProtoType(
+            const std::string& name, 
+            int fd);
         
         /**
          * @brief 通过program的name找到fd套接字
@@ -102,8 +106,9 @@ class BaseBpfAdapter {
          * @param int fd ---map的fd
          * @return int ---0表示成功，其他表示失败
          */
-        virtual int updateSharedMap(const std::string& name, 
-                                    int fd);
+        virtual int updateSharedMap(
+            const std::string& name, 
+            int fd);
 
         /**
          * @brief 通过interface（ifname）寻找ifindex
@@ -117,7 +122,13 @@ class BaseBpfAdapter {
          * @param string interface ---interface名称
          * @return int ---0表示成功，其他表示失败
          */
-        static int detachXdpProgram(const std::string& interface_name, uint32_t flags = 0);
+        static int detachXdpProgram(
+            const std::string& interface_name, 
+            uint32_t flags = 0);
+
+        static int detachXdpProgram(
+            const int ifindex, 
+            uint32_t flags = 0);
 
         /**
          * @brief 通过path获得obj的fd
@@ -132,8 +143,9 @@ class BaseBpfAdapter {
          * @param void *key ---要删除的元素的key
          * @return int ---0表示成功，其他表示失败
          */
-        static int bpfMapDeleteElement(int map_fd, 
-                                       void *key);
+        static int bpfMapDeleteElement(
+            int map_fd, 
+            void *key);
 
         /**
          * @brief 附加xdp程序，通过interface（ifname）
@@ -142,9 +154,10 @@ class BaseBpfAdapter {
          * @param uint32_t flags ---附加标志
          * @return int ---0表示成功，其他表示失败
          */
-        static int attachXdpProgram(const int prog_fd, 
-                                    const std::string& interface_name, 
-                                    const uint32_t flags = 0);
+        static int attachXdpProgram(
+            const int prog_fd, 
+            const std::string& interface_name, 
+            const uint32_t flags = 0);
 
         /**
          * @brief update map element
@@ -154,7 +167,11 @@ class BaseBpfAdapter {
          * @param uint64_t flags ---更新标志
          * @return int ---0表示成功，其他表示失败
          */
-        static int bpfUpdateMap(int map_fd, void *key, void *value, uint64_t flags = 0);
+        static int bpfUpdateMap(
+            int map_fd, 
+            void *key, 
+            void *value, 
+            uint64_t flags = 0);
 
         /**
          * @brief 获取当前系统的cpu数量
@@ -168,7 +185,10 @@ class BaseBpfAdapter {
          * @param void *value ---要查找的元素的value
          * @return int ---0表示成功，其他表示失败
          */
-        static int bpfMapLookUpElement(int map_fd, void* key, void *value);
+        static int bpfMapLookUpElement(
+            int map_fd, 
+            void* key, 
+            void *value);
 
         /**
          * @brief 修改xdp程序，通过interface（ifname）
@@ -177,9 +197,90 @@ class BaseBpfAdapter {
          * @param uint32_t flags ---修改标志
          * @return int ---0表示成功，其他表示失败
          */
-        static int modifyXdpProg(const int prog_fd,
-                                const unsigned int ifindex,
-                                const uint32_t flags = 0);
+        static int modifyXdpProg(
+            const int prog_fd,
+            const unsigned int ifindex,
+            const uint32_t flags = 0);
+
+                /**
+         * @param const int prog_fd: the file descriptor of the eBPF program
+         * @param const int repeat: the number of times to repeat the program
+         * @param void* data: the input data to the program
+         * @param uint32_t data_size: the size of the input data
+         * @param void* data_out: the output data from the program
+         * @param uint32_t* size_out: the size of the output data
+         * @param uint32_t* retval: the return value of the program
+         * @param uint32_t* duration: the duration of the program execution in microseconds
+         * @param void* ctx_in: the input context data to the program
+         * @param uint32_t ctx_in_size: the size of the input context data
+         * @param void* ctx_out: the output context data from the program
+         * @param uint32_t ctx_out_size: the size of the output context data
+         * @return int: the return value of the program
+         */
+        static int textXdpProg(
+            const int prog_fd,
+            const int repeat,
+            void* data,
+            uint32_t data_size,
+            void* data_out,
+            uint32_t* size_out = nullptr,
+            uint32_t* retval = nullptr,
+            uint32_t* duration = nullptr,
+            void* ctx_in = nullptr,
+            uint32_t ctx_in_size = 0,
+            void* ctx_out = nullptr,
+            uint32_t* ctx_out_size = nullptr
+        );
+        
+        /**
+         * @brief 获取interface的ifindex
+         * @param string interface_name ---interface名称
+         * @return int ---ifindex
+         */
+        static int getInterfaceIndex(const std::string& interface_name);
+
+        /**
+         * @brief 删除tc中的bpf filter
+         * @param int prog_fd ---program的fd
+         * @param unsigned int ifindex ---interface的ifindex
+         * @param string bpf_name ---bpf filter的名称
+         * @param uint32_t priority ---bpf filter的优先级
+         * @param int direction ---方向，默认为TC_INGRESS
+         * @param uint32_t handle ---bpf filter的handle
+         * @return int ---0表示成功，其他表示失败
+         */
+        static int deleteTcBpfFilter(
+            const int prog_fd,
+            const unsigned int ifindex,
+            const std::string& bpf_name,
+            const uint32_t priority,
+            const int direction = TC_INGRESS,
+            const uint32_t handle = 0
+        );
+
+        /**
+         * @brief 修改tc中的bpf filter
+         * @param int cmd ---命令，RTM_NEWTFILTER或RTM_DELTFILTER
+         * @param unsigned int flags ---修改标志
+         * @param uint32_t priority ---bpf filter的优先级
+         * @param int prog_fd ---program的fd
+         * @param unsigned int ifindex ---interface的ifindex
+         * @param string bpf_name ---bpf filter的名称
+         * @param int direction ---方向，默认为TC_INGRESS
+         * @param uint32_t handle ---bpf filter的handle
+         * @return int ---0表示成功，其他表示失败
+         */
+        static int modifyTcBpfFilter(
+            const int cmd,
+            const unsigned int flags,
+            const uint32_t priority,
+            const int prog_fd,
+            const unsigned int ifindex,
+            const std::string& bpf_name,
+            const int direction = TC_INGRESS,
+            const uint32_t handle = 0
+        );
+
 };
 
 }

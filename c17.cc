@@ -1,6 +1,6 @@
 #include <optional>
 #include <iostream>
-
+#include <fmt/core.h>
 int main() {
     std::optional<bool> routedThroughGlobalLru{std::nullopt};
     routedThroughGlobalLru = true;
@@ -17,5 +17,9 @@ int main() {
         std::cout << "Routed through global LRU: " << routedThroughGlobalLru.value() << std::endl;
     }
 
+    std::cout << fmt::format(
+            "Test: {:60} result: {}", "我是测试样子", "\033[31mFailed\033[0m"
+        ) << std::endl;
+    fmt::print("Слава Україні!\n");
     return 0;
 }

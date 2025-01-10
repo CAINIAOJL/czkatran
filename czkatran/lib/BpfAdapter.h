@@ -18,8 +18,8 @@ namespace czkatran {
 
 class BpfAdapter : public BaseBpfAdapter {
     public:
-        explicit BpfAdapter(bool set_limit,
-                           bool enableBatchOpsIfSupported);
+        explicit BpfAdapter(bool set_limit = true,
+                           bool enableBatchOpsIfSupported = false);
 
         BpfAdapter(BpfAdapter &bpf_adapter) = delete;
         BpfAdapter& operator=(BpfAdapter &bpf_adapter) = delete;    

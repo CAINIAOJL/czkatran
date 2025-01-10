@@ -83,6 +83,15 @@
         "thread": "cpp",
         "*.inc": "cpp",
         "coroutine": "cpp",
-        "module.h": "c"
+        "module.h": "c",
+        "ios": "cpp",
+        "stddef.h": "c",
+        "in.h": "c",
+        "packet_parse.h": "c",
+        "ipv6.h": "c",
+        "stdbool.h": "c",
+        "if_ether.h": "c",
+        "string.h": "c",
+        "cerrno": "cpp"
     }
 }
