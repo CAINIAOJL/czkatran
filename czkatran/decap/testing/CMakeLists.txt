@@ -1,0 +1,12 @@
+add_executable(xdpdecap_tester
+    xdpdecap_tester.cc
+    XdpDecapGueTestFixtures.h
+    XdpDecapTestFixtures.h
+)
+link_libraries(/usr/local/decap)
+target_link_libraries(xdpdecap_tester
+    "${GFLAGS}"
+    "${PTHREAD}"
+    bpftester
+    decap
+)

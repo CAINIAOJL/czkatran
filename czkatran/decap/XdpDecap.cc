@@ -1,7 +1,7 @@
 #include <glog/logging.h>
 #include <cstdint>
 
-#include "czkatran/decap/XdpDecap.h"
+#include "XdpDecap.h"
 
 namespace czkatran {
 

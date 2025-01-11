@@ -1,6 +1,6 @@
 g++ -o MaglevTest -std=c++17 \
     Maglev_test.cc \
-    MurmuHash3.cc \
+    MurmurHash3.cc \
     CHHelper.cc \
     MaglevBase.cc \
     MaglevHash.cc \

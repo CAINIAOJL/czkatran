@@ -1,5 +1,5 @@
-#include "czkatran/lib/Testing/PcapParser.h"
-#include "czkatran/lib/Testing/Base64Helpers.h"
+#include "PcapParser.h"
+#include "Base64Helpers.h"
 
 
 #include <glog/logging.h>
@@ -16,6 +16,7 @@ constexpr int32_t kGmt = 0; //thiszone
 constexpr uint32_t kAccuracy = 0; //sigfigs
 constexpr uint32_t Ksnaplen = 65535; //snaplen
 constexpr uint32_t kEthernet = 1; //1 表示以太网 network
+}
 
 PcapParser:: PcapParser(const std::string& inputFile, const std::string& outputFile): inputFileName_(inputFile), outputFileName_(outputFile) 
 {
@@ -199,19 +200,12 @@ bool PcapParser:: writePacket(std::unique_ptr<folly::IOBuf> packet) {
         return false;
     }
 
-    auto ret = folly::writeFull(fd, packet->data(), pkt_len);
+    ret = folly::writeFull(fd, packet->data(), pkt_len);
 
     if(!ret) {
         LOG(INFO) << "can not write pcap data to output file";
     }
     return true;
 }
-
-}
-
-
-
-
-
 
 }

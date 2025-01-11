@@ -1,7 +1,7 @@
 #pragma once
 
-#include "czkatran/decap/XdpDecapStrcuts.h"
-#include "czkatran/lib/BpfAdapter.h"
+#include "/home/jianglei/czkatran/czkatran/decap/XdpDecapStrcuts.h"
+#include "/home/jianglei/czkatran/czkatran/lib/BpfAdapter.h"
 
 namespace czkatran {
 

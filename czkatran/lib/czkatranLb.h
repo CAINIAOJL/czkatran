@@ -9,6 +9,7 @@
 #include "Balancer_structs.h"
 #include "BaseBpfAdapter.h"
 #include "BpfAdapter.h"
+#include <folly/Range.h>
 
 namespace czkatran {
 
@@ -70,9 +71,6 @@ constexpr folly::StringPiece kGlobalLruMapName = "global_lru_maps";
 constexpr folly::StringPiece kGlobalLruPerCpuName = "global_lru";
 
 namespace {
-
-
-
 constexpr folly::StringPiece KBalancerProgName = "balancer_ingress";
 constexpr folly::StringPiece KHealthcheckerProgName = "healthcheck_encap";
 }
@@ -108,7 +106,7 @@ class czKatranLb {
 
 
         int getHealthcheckerprogFd() {
-                return bpfAdapter_->getProgFdByName(KHealthcheckerProgName);
+                return bpfAdapter_->getProgFdByName(KHealthcheckerProgName.toString());
         }
 
 

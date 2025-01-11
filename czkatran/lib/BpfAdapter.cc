@@ -1,4 +1,4 @@
-#include "czkatran/lib/BpfAdapter.h"
+#include "BpfAdapter.h"
 
 
 namespace czkatran {
@@ -22,7 +22,7 @@ int BpfAdapter:: loadBpfProg(
             int buf_size,
             const ::bpf_prog_type type,
             bool use_names,
-            const char * objname = "buffer") {
+            const char * objname) {
     return bpf_loader_->loadBpfFromBuffer(buf, buf_size, type, use_names, objname);
 }
 

@@ -5,11 +5,11 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "czkatran/decap/XdpDecap.h"
-#include "czkatran/decap/XdpDecapStrcuts.h"
+#include "/home/jianglei/czkatran/czkatran/decap/XdpDecap.h"
+#include "/home/jianglei/czkatran/czkatran/decap/testing/XdpDecapTestFixtures.h"
 #include "XdpDecapGueTestFixtures.h"
 #include "XdpDecapTestFixtures.h"
-#include "czkatran/lib/Testing/BpfTester.h"
+#include "/home/jianglei/czkatran/czkatran/lib/Testing/BpfTester.h"
 
 DEFINE_string(pcap_input, "", "path to input pcap file");
 DEFINE_string(pcap_output, "", "path to output pcap file");

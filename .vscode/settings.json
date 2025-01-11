@@ -92,6 +92,8 @@
         "stdbool.h": "c",
         "if_ether.h": "c",
         "string.h": "c",
-        "cerrno": "cpp"
+        "cerrno": "cpp",
+        "swab.h": "c",
+        "test": "cpp"
     }
 }

@@ -89,13 +89,13 @@ int BaseBpfAdapter:: textXdpProg(
             void* data,
             uint32_t data_size,
             void* data_out,
-            uint32_t* size_out = nullptr,
-            uint32_t* retval = nullptr,
-            uint32_t* duration = nullptr,
-            void* ctx_in = nullptr,
-            uint32_t ctx_in_size = 0,
-            void* ctx_out = nullptr,
-            uint32_t* ctx_out_size = nullptr
+            uint32_t* size_out,
+            uint32_t* retval,
+            uint32_t* duration,
+            void* ctx_in,
+            uint32_t ctx_in_size,
+            void* ctx_out,
+            uint32_t* ctx_out_size
         )
 {
     LIBBPF_OPTS(
@@ -242,8 +242,8 @@ int BaseBpfAdapter:: deleteTcBpfFilter(
             const unsigned int ifindex,
             const std::string& bpf_name,
             const uint32_t priority,
-            const int direction = TC_INGRESS,
-            const uint32_t handle = 0
+            const int direction,
+            const uint32_t handle
         )
 {
     int cmd = RTM_DELTFILTER;
@@ -258,8 +258,8 @@ int BaseBpfAdapter:: modifyTcBpfFilter(
             const int prog_fd,
             const unsigned int ifindex,
             const std::string& bpf_name,
-            const int direction = TC_INGRESS,
-            const uint32_t handle = 0
+            const int direction,
+            const uint32_t handle
         )
 {
     unsigned int seq = static_cast<unsigned int>(std::time(nullptr));

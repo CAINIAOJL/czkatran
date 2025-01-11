@@ -1,4 +1,4 @@
-#include "czkatran/lib/BpfLoater.h"
+#include "BpfLoater.h"
 
 #include <glog/logging.h>
 
@@ -146,7 +146,7 @@ int BpfLoader:: loadBpfFromBuffer(
             const char *buf,
             int buf_size,
             const bpf_prog_type type,
-            bool use_names = false,
+            bool use_names,
             const char * objname) {
     LIBBPF_OPTS(bpf_object_open_opts, opts, .object_name = objname);
     auto obj = ::bpf_object__open_mem(buf, buf_size, &opts);
