@@ -1,7 +1,8 @@
 #ifndef DECAP_BPF_H__
 #define DECAP_BPF_H__
 
-#include <bpf/bpf_helpers.h>
+#include <czkatran/lib/linux_includes/bpf_endian.h>
+#include <czkatran/lib/linux_includes/bpf_helpers.h>
 
 // maps used by LB decap
 

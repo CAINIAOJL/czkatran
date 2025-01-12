@@ -5,9 +5,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#include <bpf/bpf.h>
-#include <bpf/bpf_endian.h>
-#include <bpf/bpf_tracing.h>
+#include <czkatran/lib/linux_includes/bpf_endian.h>
+#include <czkatran/lib/linux_includes/bpf_helpers.h>
 
 #include "czkatran/decap/bpf/decap.bpf.h"
 #include "czkatran/lib/bpf/balancer_consts.h"
