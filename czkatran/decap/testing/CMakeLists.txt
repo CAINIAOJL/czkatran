@@ -3,10 +3,14 @@ add_executable(xdpdecap_tester
     XdpDecapGueTestFixtures.h
     XdpDecapTestFixtures.h
 )
-link_libraries(/usr/local/decap)
+
 target_link_libraries(xdpdecap_tester
     "${GFLAGS}"
     "${PTHREAD}"
+    -lglog
+    -lgflags
     bpftester
     decap
 )
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")

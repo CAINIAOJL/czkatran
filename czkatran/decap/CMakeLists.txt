@@ -3,8 +3,8 @@ cmake_minimum_required(VERSION 3.2)
 set(CZKATRAN_INCLUDE_DIR "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../>")
 
 #find_package(Glog REQUIRED)
-#find_package(folly CONFIG REQUIRED)
-#find_package(Threads)
+find_package(folly CONFIG REQUIRED)
+find_package(Threads)
 
 add_library(decap STATIC
     XdpDecap.cc
@@ -14,8 +14,8 @@ add_library(decap STATIC
 #连接库目标
 target_link_libraries(decap
     bpfadapter
-    "Folly"
-    ${GLOG}
+    "Folly::folly"
+    -lglog
 )
 
 #寻找头文件
@@ -27,7 +27,7 @@ target_include_directories(
 
 install(TARGETS decap
     EXPORT czkatran-exports
-    DESTINATION decap
+    DESTINATION lib
 )
 
 if (BUILD_TESTS)

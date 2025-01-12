@@ -148,6 +148,10 @@ BaseBpfAdapter:: BaseBpfAdapter(bool set_limits,
     }
 }
 
+BaseBpfAdapter::~BaseBpfAdapter() {
+
+}
+
 int BaseBpfAdapter:: modifyXdpProg(const int prog_fd,
                                    const unsigned int ifindex,
                                    const uint32_t flags) {

@@ -1,6 +1,3 @@
-if(NOT BUILD_TESTS)
-    return ()
-endif()
 
 #include(czkatranTest)
 
@@ -10,9 +7,9 @@ add_library(base64_helpers STATIC
 )
 
 target_link_libraries(base64_helpers
-    glog
+    -lglog
     "${GFLAGS}"
-    Folly
+    Folly::folly
     "${BOOST_SYSTEM}"
     "czkatranlb"
 )
@@ -30,8 +27,8 @@ add_library(pcap_parser STATIC
 
 target_link_libraries(pcap_parser
     base64_helpers
-    Folly
-    glog
+    Folly::folly
+    -lglog
     "${BOOST_SYSTEM}"
 )
 
@@ -41,8 +38,9 @@ add_library(bpftester STATIC
 )
 
 target_link_libraries(bpftester
-    Folly
-    glog
+    Folly::folly
+    -lglog
+    fmt::fmt
     pcap_parser
     bpfadapter
 )

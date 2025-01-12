@@ -35,7 +35,7 @@ class BaseBpfAdapter {
     public:
         BaseBpfAdapter(bool set_limits, bool enableBatchOpsIfSupported);
 
-        virtual ~BaseBpfAdapter() {}
+        virtual ~BaseBpfAdapter();
 
         /**
          * @brief loadBpfProg 加载BPF程序
@@ -47,14 +47,14 @@ class BaseBpfAdapter {
         virtual int loadBpfProg(
             const std::string& bpf_prog,
             const bpf_prog_type type = BPF_PROG_TYPE_UNSPEC,
-            bool use_names = false);
+            bool use_names = false) = 0;
         
         virtual int loadBpfProg(
             const char *buf,
             int buf_size,
             const ::bpf_prog_type type = BPF_PROG_TYPE_UNSPEC,
             bool use_names = false,
-            const char * objname = "buffer");
+            const char * objname = "buffer") = 0;
 
         /**
          * @brief reloadBpfProg 重新加载BPF程序
@@ -64,14 +64,14 @@ class BaseBpfAdapter {
          */
         virtual int reloadBpfProg(
             const std::string& bpf_prog,
-            const bpf_prog_type type = BPF_PROG_TYPE_UNSPEC);
+            const bpf_prog_type type = BPF_PROG_TYPE_UNSPEC) = 0;
         
         /**
          * @brief 通过map的name找到fd套接字
          * @param string name ---map的名称
          * @return int ---fd套接字
          */
-        virtual int getMapFdByName(const std::string& name);
+        virtual int getMapFdByName(const std::string& name) = 0;
 
         /**
          * @brief 查找map是否存在在program中
@@ -81,7 +81,7 @@ class BaseBpfAdapter {
          */
         virtual bool isMapInProg(
             const std::string& progName, 
-            const std::string& mapName);
+            const std::string& mapName) = 0;
 
         /**
          * @brief 设置map到inner_Map_prototypes_中
@@ -91,14 +91,14 @@ class BaseBpfAdapter {
          */
         virtual int setInnerMapProtoType(
             const std::string& name, 
-            int fd);
+            int fd) = 0;
         
         /**
          * @brief 通过program的name找到fd套接字
          * @param string name ---program的名称
          * @return int ---fd套接字
          */
-        virtual int getProgFdByName(const std::string& name);
+        virtual int getProgFdByName(const std::string& name) = 0;
 
         /**
          * @brief 更新共享map
@@ -108,7 +108,7 @@ class BaseBpfAdapter {
          */
         virtual int updateSharedMap(
             const std::string& name, 
-            int fd);
+            int fd) = 0;
 
         /**
          * @brief 通过interface（ifname）寻找ifindex
