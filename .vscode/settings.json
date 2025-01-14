@@ -94,6 +94,9 @@
         "string.h": "c",
         "cerrno": "cpp",
         "swab.h": "c",
-        "test": "cpp"
+        "test": "cpp",
+        "xdp": "c",
+        "libxdp.h": "c",
+        "shared_mutex": "cpp"
     }
 }

@@ -34,7 +34,7 @@ void MaglevBase:: genMaglevPermutation(
 
     auto skip_hash = MurmuHash3_x64_64(endpoint.hash, kHashSeed3, kHashSeed1);
 
-    auto skip = skip_hash % (ring_size - 1) + 1;
+    auto skip = (skip_hash % (ring_size - 1)) + 1;
 
     //用一个长列表代替填表过程伪代码中的二维数组
     permutation[2 * pos] = offset;

@@ -5,5 +5,5 @@
 
 namespace czkatran {
 
-    uint16_t MurmuHash3_x64_64(const uint16_t& A, const uint16_t& B, const uint32_t seed);
+    uint64_t MurmuHash3_x64_64(const uint64_t& A, const uint64_t& B, const uint32_t seed);
 }

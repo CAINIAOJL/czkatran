@@ -7,7 +7,7 @@ namespace czkatran {
         return (x << r) | (x >> (64 - r));
     }
 
-    uint16_t MurmuHash3_x64_64(const uint16_t& A, const uint16_t& B, const uint32_t seed) {
+    uint64_t MurmuHash3_x64_64(const uint64_t& A, const uint64_t& B, const uint32_t seed) {
         uint64_t h1 = seed;
         uint64_t h2 = seed;
 

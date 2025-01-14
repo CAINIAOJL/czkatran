@@ -1,6 +1,7 @@
 #include <optional>
 #include <iostream>
 #include <fmt/core.h>
+#include <folly/AtomicHashArray.h>
 int main() {
     std::optional<bool> routedThroughGlobalLru{std::nullopt};
     routedThroughGlobalLru = true;

@@ -42,7 +42,8 @@ std::vector<int> MaglevHashV2::generateHashRing(
         //权重越高，先被处理的概率越大
         for(int i = 0; i < endpoints.size(); i++) {
             csumweight[i] += endpoints[i].weight;
-            if (csumweight[i] > max_weight) {
+            if (csumweight[i] >= max_weight) {
+                csumweight[i] -= max_weight;
                 auto offset = permutation[2 * i];
                 auto skip = permutation[2 * i + 1];
                 auto cur = (offset + next[i] * skip)  % ring_size;
