@@ -23,7 +23,7 @@ network：链路层标头类型，指定数据包开头的标头类型
 
 */
 
-
+//全局标头
 struct pcap_hdr_s {
     uint32_t magic_number;   /* magic number */
     uint16_t version_major;  /* major version number */
@@ -50,6 +50,7 @@ orig_len：捕获数据包时数据包在网络上显示的长度。
 如果 incl_len 和 orig_len 不同，则实际保存的数据包大小受 snaplen 的限制。
 */
 
+//数据标头
 struct pcaprec_hdr_s {
     uint32_t ts_sec;         /* timestamp seconds */
     uint32_t ts_usec;        /* timestamp microseconds */
