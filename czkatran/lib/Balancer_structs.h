@@ -19,6 +19,12 @@ struct lb_stats {
 };
 
 
+struct event_metadata {
+    uint32_t events;
+    uint32_t pkt_len;
+    uint32_t data_len;
+}__attribute__((__packed__));
+
 
 
 

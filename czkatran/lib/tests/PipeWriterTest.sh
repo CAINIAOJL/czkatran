@@ -12,7 +12,9 @@
 g++ -v -Wall -o PipeWriterTest \
     /home/jianglei/czkatran/czkatran/lib/tests/PipeWriterTest.cc \
     /home/jianglei/czkatran/czkatran/lib/PipeWriter.cc \
-    -std=c++17 -g -Wall \
+    -std=c++17 \
+    -g \
+    -Wall \
     -lpthread \
     -lgtest \
     -lfolly \

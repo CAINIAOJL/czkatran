@@ -97,6 +97,7 @@
         "test": "cpp",
         "xdp": "c",
         "libxdp.h": "c",
-        "shared_mutex": "cpp"
+        "shared_mutex": "cpp",
+        "btf.h": "c"
     }
 }

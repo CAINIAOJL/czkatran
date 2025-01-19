@@ -1,9 +1,11 @@
 #ifndef DECAP_BPF_H__
 #define DECAP_BPF_H__
 
-#include <czkatran/lib/linux_includes/bpf.h>
-#include <czkatran/lib/linux_includes/bpf_helpers.h>
-#include "czkatran/lib/bpf/balancer_consts.h"
+//#include <czkatran/lib/linux_includes/bpf.h>
+//#include <czkatran/lib/linux_includes/bpf_helpers.h>
+#include <bpf/btf.h>
+#include <bpf/bpf_helpers.h>
+#include "/home/jianglei/czkatran/czkatran/lib/bpf/balancer_consts.h"
 // maps used by LB decap
 
 #ifndef DECAP_STATS_MAP_SIZE

@@ -6,7 +6,7 @@
 #include <set>
 
 #include "CHHelper.h"
-
+#include "MonitoringStructs.h"
 
 namespace czkatran {
 
@@ -53,14 +53,14 @@ enum class PcapStorageFormat {
  * katran monitoring config. being used if katran's bpf code was build w/
  * introspection enabled (-DKATRAN_INTROSPECTION)
  */
-struct KatranMonitorConfig {
+struct czKatranMonitorConfig {
   uint32_t nCpus;
   uint32_t pages{kDefaultNumOfPages};
   int mapFd;
   uint32_t queueSize{kDefaultMonitorQueueSize};
   uint32_t pcktLimit{kDefaultMonitorPcktLimit};
   uint32_t snapLen{kDefaultMonitorSnapLen};
-  //std::set<monitoring::EventId> events{monitoring::kAllEventIds};
+  std::set<monitoring::EventId> events{monitoring::KAllEventIds};
   std::string path{"/tmp/czkatran_pcap"};
   PcapStorageFormat storage{PcapStorageFormat::FILE};
   uint32_t bufferSize{0};
@@ -203,7 +203,7 @@ struct czKatranConfig {
   uint32_t maxDecapDst = kDefaultMaxDecapDstSize;
   std::string hcInterface = kDefaultHcInterface;
   uint32_t xdpAttachFlags = kNoFlags;
-  struct KatranMonitorConfig monitorConfig;
+  struct czKatranMonitorConfig monitorConfig;
   bool memlockUnlimited = true;
   std::string katranSrcV4 = kAddressNotSpecified;
   std::string katranSrcV6 = kAddressNotSpecified;

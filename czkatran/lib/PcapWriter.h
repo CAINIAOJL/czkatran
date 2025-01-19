@@ -90,6 +90,10 @@ class PcapWriter {
             packetLimitOverride_ = value;
         }
 
+        std::set<monitoring::EventId> getEnableEvents() {
+            return enablesEvents_;
+        }
+
     private:
         /**
          * @brief 写pcap包

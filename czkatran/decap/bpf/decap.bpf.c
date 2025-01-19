@@ -6,14 +6,16 @@
 #include <stddef.h>
 
 
-#include <czkatran/lib/linux_includes/bpf.h>
-#include <czkatran/lib/linux_includes/bpf_helpers.h>
+//#include <czkatran/lib/linux_includes/bpf.h>
+//#include <czkatran/lib/linux_includes/bpf_helpers.h>
+#include <bpf/bpf.h>
+#include <bpf/bpf_helpers.h>
 
-#include "czkatran/decap/bpf/decap.bpf.h"
-#include "czkatran/lib/bpf/balancer_consts.h"
-#include "czkatran/lib/bpf/balancer_structs.h"
-#include "czkatran/lib/bpf/packet_encap.h"
-#include "czkatran/lib/bpf/packet_parse.h"
+#include "/home/jianglei/czkatran/czkatran/decap/bpf/decap.bpf.h"
+#include "/home/jianglei/czkatran/czkatran/lib/bpf/balancer_consts.h"
+#include "/home/jianglei/czkatran/czkatran/lib/bpf/balancer_structs.h"
+#include "/home/jianglei/czkatran/czkatran/lib/bpf/packet_encap.h"
+#include "/home/jianglei/czkatran/czkatran/lib/bpf/packet_parse.h"
 
 //decap 解封装
 //encap 封装

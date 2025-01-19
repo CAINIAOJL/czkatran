@@ -8,8 +8,8 @@
 
 #include <bpf/bpf.h>
 #include <bpf/bpf_helpers.h>
-#include "czkatran/lib/bpf/balancer_consts.h"
-#include "czkatran/lib/bpf/balancer_structs.h"
+#include "balancer_consts.h"
+#include "balancer_structs.h"
 
 
 

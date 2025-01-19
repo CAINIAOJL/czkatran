@@ -54,11 +54,11 @@ class ClientSubscriptionIf {
          */
         virtual void sendEvent(const Event& event) = 0;
 
-        virtual void hasEvent(const EventId& eventid) = 0;
-
-        using ClientSubscriptionMap = 
-            std::unordered_map<ClientId, std::shared_ptr<ClientSubscriptionIf>>;
+        virtual bool hasEvent(const EventId& eventid) = 0;
 };
+
+using ClientSubscriptionMap = 
+            std::unordered_map<ClientId, std::shared_ptr<ClientSubscriptionIf>>;
 
 }
 }
