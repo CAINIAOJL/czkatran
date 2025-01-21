@@ -53,7 +53,7 @@ bool PerfBufferEventReader:: open(int bpfPerfMap,
     }
     for(auto i = 0; i < bufcnt; i++) {
         int bufFd = perf_buffer__buffer_fd(pb, i);
-        cpuBufferHandlers_.push_back(std::make_unique<PerfBufferEventReader::CpuPerfBufferHandler>(evb, bufFd, i)); 
+        cpuBufferHandlers_.push_back(std::make_unique<PerfBufferEventReader::CpuPerfBufferHandler>(evb, pb,bufFd, i)); 
     }
 
     return true;

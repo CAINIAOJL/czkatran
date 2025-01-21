@@ -21,12 +21,12 @@ class PerfBufferEventReader {
         bool open(int bpfPerfMap, folly::EventBase* evb, size_t pageCpount);
 
         /**
-         * @brief Callback when a perf buffer event is received.
+         * @brief 纯虚函数，Callback when a perf buffer event is received.
          * @param cpu The CPU the event was received on.
          * @param data The event data.
          * @param size The size of the event data.
          */
-        virtual void handlePerfBufferEvent(int cpu, const char* data, size_t size) noexcept;
+        virtual void handlePerfBufferEvent(int cpu, const char* data, size_t size) noexcept = 0;
 
         virtual void handlePerfBufferLoss(int cpu, uint64_t losscount) {}
 

@@ -87,7 +87,7 @@ bool czkatranMonitor:: disabledWriterEvent(monitoring::EventId event) {
     return true;
 }
 
-std::set<monitoring::EventId> czkatranMonitor:: getEnabledEvents() {
+std::set<monitoring::EventId> czkatranMonitor:: getWriterEnabledEvents() {
     if(!writer_) {
         return {};
     }

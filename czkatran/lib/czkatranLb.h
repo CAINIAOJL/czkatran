@@ -7,7 +7,6 @@
 #include "BaseBpfAdapter.h"
 #include "czkatranLbStructs.h"
 #include "Balancer_structs.h"
-#include "BaseBpfAdapter.h"
 #include "BpfAdapter.h"
 #include <folly/Range.h>
 

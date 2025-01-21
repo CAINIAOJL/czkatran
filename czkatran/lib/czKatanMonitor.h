@@ -34,7 +34,7 @@ class czkatranMonitor {
 
         std::unique_ptr<folly::IOBuf> getEventBuffer(monitoring::EventId event);
 
-        std::set<monitoring::EventId> getEnabledEvents();
+        std::set<monitoring::EventId> getWriterEnabledEvents();
 
         bool enableWriterEvent(monitoring::EventId event);
 
