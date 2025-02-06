@@ -98,6 +98,12 @@
         "xdp": "c",
         "libxdp.h": "c",
         "shared_mutex": "cpp",
-        "btf.h": "c"
+        "btf.h": "c",
+        "if_tunnel.h": "c",
+        "jffs2.h": "c",
+        "handle_icmp.h": "c",
+        "balancer_maps.h": "c",
+        "control_data_maps.h": "c",
+        "csum_helpers.h": "c"
     }
 }

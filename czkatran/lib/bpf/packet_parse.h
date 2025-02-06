@@ -15,6 +15,90 @@
 #include "balancer_consts.h"
 #include "balancer_structs.h"
 
+/*                      QUIC LONG HEADER
+0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+
+   |1|X X X X X X X|
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                         Version (32)                          |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   | DCID Len (8)  |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |               Destination Connection ID (0..2040)           ...
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   | SCID Len (8)  |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                 Source Connection ID (0..2040)              ...
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X  ...
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ */
+/*
+Long Header Packet {
+     Header Form (1) = 1,
+     Version-Specific Bits (7),
+     Version (32),
+     Destination Connection ID Length (8),
+     Destination Connection ID (0..2040),
+     Source Connection ID Length (8),
+     Source Connection ID (0..2040),
+     Version-Specific Data (..),
+   }
+*/
+
+struct quic_long_header {
+    __u8 flags;
+    __u32 version;
+    
+    // [4bits] Dest Conn Id + [4 bits] Source Conn Id = [8 bits]conn_id_lens 
+    __u8 conn_id_lens;
+
+    __u8 dst_connection_id[QUIC_MIN_CONNID_LEN];
+} __attribute__((__packed__));
+
+/*                   QUIC SHORT HEADER
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+
+   |0|X X X X X X X|
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                 Destination Connection ID (*)               ...
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X  ...
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+*/
+
+/*
+   Short Header Packet {
+     Header Form (1) = 0,
+     Version-Specific Bits (7),
+     Destination Connection ID (..),
+     Version-Specific Data (..),
+   }
+*/
+
+struct quic_short_header {
+    __u8 flags;
+    __u8 dst_connection_id[QUIC_MIN_CONNID_LEN];
+} __attribute__((__packed__));
+
+struct quic_parse_result {
+    int server_id;
+    __u8 cid_version;
+    bool is_initial;
+};
+
+struct stable_routing_header {
+    __u8 connection_id[STABLE_RT_LEN]; //一个字节
+}__attribute__((__packed__));
+
+struct udp_stable_rt_result {
+    __be32 server_id;
+    bool is_stable_rt_pkt;
+};
+
+
 /**
  * @brief 计算报文的偏移量
  * @param is_ipv6 是否是ipv6报文
@@ -215,7 +299,158 @@ __always_inline static int tcp_hdr_opt_lookup_server_id(const struct xdp_md *xdp
 }
 #endif //TCP_SERVER_ID_ROUTING || DECAP_TPR_STATS
 
+//~
+__always_inline static struct quic_parse_result parse_quic(
+    void* data,
+    void* data_end,
+    bool is_ipv6,
+    struct packet_description* pckt
+) {
+    struct quic_parse_result result = {
+        .server_id = FURTHER_PROCESSING,
+        .cid_version = 0xFF,
+        .is_initial = false
+    };
+
+    bool is_icmp = (pckt->flags & F_ICMP);
+
+    __u64 off = calc_offset(is_ipv6, is_icmp);
+
+    if(data + off + sizeof(struct udphdr) + sizeof(__u8) > data_end) {
+        return result;
+    }
+
+    __u8* quic_data = data + off + sizeof(struct udphdr);
+    __u8* pckt_type = quic_data;
+    __u8* connId = NULL;
+
+    /*
+    CONN ID 的位置根据数据包是长报头还是短报头而变化。
+    一旦我们计算了 conn id 的偏移量，只需读取固定长度，
+    即使 connid len 可以是 0 或 4-18 字节，
+    因为 czkatran 只关心 Dest Conn Id 中的前 16 位
+    */
+   //长头
+   if((*pckt_type & QUIC_LONG_HEADER) == QUIC_LONG_HEADER) {
+        if((quic_data + sizeof(struct quic_long_header)) > data_end) {
+            return result;
+        }
+        if((*pckt_type & QUIC_PACKET_TYPE_MASK) < QUIC_HEADERMASK) {
+            /*
+            对于客户端初始数据包和 0RTT 数据包 - 回退以使用 C. 哈希，
+            因为connection-id 不是服务器选择的 ID。
+            */
+            result.is_initial = true;
+            return result;
+        }
+
+        struct quic_long_header* long_header = (struct quic_long_header*)quic_data;
+        if(long_header->conn_id_lens < QUIC_MIN_CONNID_LEN) {
+            return result;
+        }
+        connId = long_header->dst_connection_id;
+   } else {
+    //短头
+    //直接读取connID
+    if(quic_data + sizeof(struct quic_short_header) > data_end) {
+        return result;
+    }
+    connId = ((struct quic_short_header*)quic_data)->dst_connection_id;
+   }
+   if(!connId) {
+    return result;
+   }
+
+    //取前两位
+   __u8 connIdVersion = (connId[0] >> 6);
+   result.cid_version = connIdVersion;
+   if(connIdVersion == QUIC_CONNID_VERSION_V1) {
+        result.server_id = ((connId[0] & 0x3F) << 10) | (connId[1] << 2) | (connId[2] << 6);
+        return result;
+   } else if(connIdVersion == QUIC_CONNID_VERSION_V2) {
+        result.server_id = (connId[1] << 16) | (connId[2] << 8) | (connId[3]);
+        return result;
+   } else if (connIdVersion == QUIC_CONNID_VERSION_V3) {
+        result.server_id = (connId[1] << 24) | (connId[2] << 16) | (connId[3] << 8) | (connId[4]);
+   }
+   return result;
+}
 
 
+__always_inline static struct udp_stable_rt_result parse_udp_stable_rt_hdr(
+    void* data,
+    void* data_end,
+    bool is_ipv6,
+    struct packet_description* pckt
+)
+{
+    struct udp_stable_rt_result result = {
+        .server_id = STABLE_RT_NO_SERVER_ID,
+        .is_stable_rt_pkt = false
+    };
+    bool is_icmp = (pckt->flags & F_ICMP);
+    __u64 off = calc_offset(is_ipv6, is_icmp);
+
+    if((data + off + sizeof(struct udphdr) + sizeof(__u8)) > data_end) {
+        return result;
+    }
+
+    __u8* udp_data = data + off + sizeof(struct udphdr);
+    __u8* pkt_type = udp_data;
+    __u8* connId = NULL;
+
+    if((*pkt_type) == STABLE_ROUTING_HEADER) {
+        //带有stable routing header的数据包
+        if(udp_data + sizeof(struct stable_routing_header) > data_end) {
+            return result;
+        }
+        connId = ((struct stable_routing_header*)udp_data)->connection_id;
+        result.is_stable_rt_pkt = true;
+    }
+    if(!connId) {
+        return result;
+    }
+
+    result.server_id = (connId[1] << 16) | (connId[2] << 8) | (connId[3]);
+    return result;
+}
 
 #endif
+
+
+#ifdef TCP_SERVER_ID_ROUTING
+__always_inline static int tcp_hdr_opt_lookup(
+    struct xdp_md* ctx,
+    bool is_ipv6,
+    struct real_definition** dst,
+    struct packet_description* pckt
+)
+{
+    __u32 server_id = 0;
+    int err = 0;
+    if(tcp_hdr_opt_lookup_server_id(ctx, is_ipv6, &server_id) == FURTHER_PROCESSING) {
+        return FURTHER_PROCESSING;
+    }
+
+    __u32 key = server_id;
+    __u32* real_pos = bpf_map_lookup_elem(&server_id_map, &key);
+    if(!real_pos) {
+        return FURTHER_PROCESSING;
+    }
+    key = *real_pos;
+    if(key == 0) {
+        /*
+        由于 server_id_map 是一个bpf_map_array因此其所有成员都是 0 初始化的，
+        这可能导致不存在的键与索引 0 处的 real 错误匹配。
+        因此，只需跳过值为 0 的 key 即可避免数据包路由错误。
+        */
+        return FURTHER_PROCESSING;
+    }
+    pckt->real_index = key;
+    *dst = bpf_map_lookup_elem(&reals, key);
+    if(!(*dst)) {
+        return FURTHER_PROCESSING;
+    }
+    return 0;
+}
+#endif // TCP_SERVER_ID_ROUTING
