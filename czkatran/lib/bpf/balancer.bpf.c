@@ -12,8 +12,41 @@
 #include "packet_encap.h"
 #include "packet_parse.h"
 #include "handle_icmp.h"
+#include "jhash.h"
+
+__always_inline static bool is_under_flood(
+    __u32* cur_time
+) {
+    __u32 conn_rate_key = MAX_VIPS + NEW_CONN_RATE_CNTR;
+    struct lb_stats* conn_rate_stats = 
+        bpf_map_lookup_elem(&stats, &conn_rate_key);
+    if(!conn_rate_stats) {
+        return true; //直截了当地判断syn攻击，待进一步优化
+    }
+    *cur_time = bpf_ktime_get_ns();
+    /*
+    我们将检查新连接速率是否低于预定义的速率
+    价值;conn_rate_stats.v1 包含最后一个
+    second， v2 - 上次 Quanta 开始的时间。
+    */
+    if((*cur_time - conn_rate_stats->v2) > ONE_SEC  /* 1 sec in nanosec*/) {
+        conn_rate_stats->v1 = 1;
+        conn_rate_stats->v2 = *cur_time; //存放的是时间
+    } else {
+        conn_rate_stats->v1++;
+        /*
+        我们正在超过最大连接速率。跳过 LRU 更新和源路由查找
+        */
+        if(conn_rate_stats->v1 > MAX_CONN_RATE) {
+            return true;
+        }
+    }
+    return false;
+}
 
 
+
+//~
 __always_inline static int 
 process_l3_headers(
     struct packet_description* pckt,
@@ -93,7 +126,7 @@ process_l3_headers(
     return FURTHER_PROCESSING;
 }
 
-
+//~
 #ifdef INLINE_DECAP_GENERIC
 __always_inline static int check_decap_dst(
     struct packet_description* pckt,
@@ -133,7 +166,7 @@ __always_inline static int check_decap_dst(
             }
         }
     }
-#endif
+#endif //INLINE_DECAP_GENERIC
 
     if(is_ipv6) {
         memcpy(dst_address.addrv6, pckt->flow.dstv6, 16);
@@ -156,6 +189,7 @@ __always_inline static int check_decap_dst(
 }
 #endif //INLINE_DECAP_GENERIC
 
+//~
 #ifdef INLINE_DECAP_IPIP
 __always_inline static int 
 process_encaped_ipip_pckt(
@@ -278,6 +312,7 @@ __always_inline static int check_decap_dst(
 }
 #endif */ // INLINE_DECAP_GENERIC
 
+//~
 #ifdef INLINE_DECAP_GUE
 
 __always_inline static void incr_decap_vip_stats(
@@ -401,7 +436,7 @@ __always_inline static int process_encaped_gue_pckt(
     }
     return recirculate(ctx);
 }
-#endif
+#endif //INLINE_DECAP_GUE
 
 __always_inline static void increment_quic_cid_version_stats(
     struct lb_quic_packets_stats* quic_packets_stats,
@@ -432,8 +467,17 @@ __always_inline static int check_and_update_real_index_in_lru(
             return DST_MISMATCH_IN_LRU;
         }
     }
+    __u64 cur_time;
+    if(is_under_flood(&cur_time)) {
+        return DST_NOT_FOUND_IN_LRU;
+    }
+    struct real_pos_lru new_dst_lru = {};
+    new_dst_lru.pos = pckt->real_index;
+    new_dst_lru.atime = cur_time;
+    return DST_NOT_FOUND_IN_LRU;
 }
 
+//~
 __always_inline static void incr_server_id_routing_stats(
     __u32 vip_num, 
     bool newConn, 
@@ -500,6 +544,7 @@ __always_inline static bool process_udp_stable_routing(
 }
 #endif
 
+//~
 //cache操作，
 __always_inline static void connecttion_table_lookup(
     struct real_definition** dst,
@@ -529,6 +574,7 @@ __always_inline static void connecttion_table_lookup(
     return;
 }
 
+//~
 #ifdef GLOBAL_LRU_LOOKUP
 __always_inline static int perform_global_lru_lookup(
     struct real_definition** dst,
@@ -566,6 +612,174 @@ __always_inline static int perform_global_lru_lookup(
 }
 #endif
 
+
+__always_inline static void increment_ch_drop_real_0() {
+    __u32 ch_drop_key = MAX_VIPS + CH_DROP_STATS;
+    struct lb_stats* ch_drop_stats = 
+        bpf_map_lookup_elem(&stats, &ch_drop_key);
+    if(!ch_drop_stats) {
+        return;
+    }
+    ch_drop_stats->v2++;
+}
+
+__always_inline static void increment_ch_drop_no_real() {
+    __u32 ch_drop_stats_key = MAX_VIPS + CH_DROP_STATS;
+    struct lb_stats* ch_drop_stats = 
+        bpf_map_lookup_elem(&stats, &ch_drop_stats_key);
+    if(!ch_drop_stats) {
+        return;
+    }
+    ch_drop_stats->v1++;
+}
+
+__always_inline static __u32 get_packet_hash(
+    struct packet_description* pckt,
+    bool hash_16bytes
+) {
+    if(hash_16bytes) {
+        return jhash_2words(jhash(pckt->flow.srcv6, 16, INIT_JHASH_SEED_V6),
+        pckt->flow.ports, INIT_JHSAH_SEED);
+    } else {
+        return jhash_2words(pckt->flow.src, pckt->flow.ports, INIT_JHSAH_SEED);
+    }
+}
+
+//~
+__always_inline static bool get_packet_dst(
+    struct real_defination** dst,
+    struct packet_description* pckt,
+    struct vip_meta* vip_info,
+    bool is_ipv6,
+    void *lru_map
+)
+{
+    struct real_pos_lru new_dst = {};
+    bool under_flood;
+    bool src_found;
+    __u32* cur_time;
+    __u32 key;
+    __u32 hash;
+    __u32* real_pos;
+    under_flood = is_under_flood(&cur_time);
+
+#ifdef LPM_SRC_LOOKUP
+    if(vip_info->flags & F_SRC_ROUTING) {
+        __u32* lpm_val;
+        if(is_ipv6) {
+            struct v6_lpm_key lpm_key_v6 = {};
+            lpm_key_v6.prefixlen = 128;
+            memcpy(lpm_key_v6.addrv6, pckt->flow.srcv6, 16);
+            lpm_val = bpf_map_lookup_elem(&lpm_src_v6, &lpm_key_v6);
+        } else {
+            struct v4_lpm_key lpm_key_v4 = {};
+            lpm_key_v4.prefixle = 32;
+            lpm_key_v4.addr = pckt->flow.src;
+            lpm_val = bpf_map_lookup_elem(&lpm_src_v4, &lpm_key_v4);
+        }
+        
+        if(lpm_val) {
+            src_found = true;
+            key = *lpm_val;
+        }
+
+        __u32 stats_key = MAX_VIPS + LPM_SRC_CNTRS;
+        struct lb_stats* lpm_stats = 
+            bpf_map_lookup_elem(&stats, &stats_key);
+        if(lpm_stats) {
+            if(src_found) {
+                lpm_stats->v2++;
+            } else {
+                lpm_stats->v1++;
+            }
+        }
+    }
+#endif
+
+    if(!src_found) {
+        bool hahs_16bytes = is_ipv6;
+
+        if(vip_info->flags & F_HASH_DPORT_ONLY) {
+            /*
+            仅使用 DST 端口进行哈希计算的服务
+            例如，如果数据包具有相同的 DST 端口 ->则它们将发送到相同的 real。
+            通常是 VoIP 相关服务。
+            */
+           pckt->flow.port16[0] = pckt->flow.port16[1];
+           memset(pckt->flow.srcv6, 0, 16);
+        }
+        hash = get_packet_hash(pckt, hahs_16bytes) % RING_SIZE;
+        key = RING_SIZE * (vip_info->vip_num) + hash;
+
+        real_pos = bpf_map_lookup_elem(&ch_rings, &key);
+        if(!real_pos) {
+            return false;
+        }
+        key = *real_pos;
+        if(key == 0) {
+            //这里，0代表初始化，我们的real ids 从1开始
+            /*
+            真实 ID 从 1 开始，因此我们不会将 id 0 映射到任何真实 ID。这
+            如果 VIP 的 CH 环未初始化，则可能会发生这种情况。
+            */
+           increment_ch_drop_real_0(); //计数
+           return false;
+        }
+    }
+    //key != 0
+    pckt->real_index = key;
+    *dst = bpf_map_lookup_elem(&reals, &key);
+    if(!(*dst)) {
+        increment_ch_drop_no_real(); //计数
+        return false;
+    }
+
+    if(lru_map && !(vip_info->flags & F_LRU_BYPASS) && !under_flood) {
+        if(pckt->flow.proto == IPPROTO_UDP) {
+            new_dst.atime = cur_time;
+        }
+        new_dst.pos = key;
+        //更新LRU
+        bpf_map_update_elem(lru_map, &pckt->flow, &new_dst, BPF_ANY);
+    }
+    return true;
+}
+
+//~
+__always_inline static int update_vip_lru_miss_stats(
+    struct vip_definition* vip,
+    struct packet_description* pckt,
+    struct vip_meta* vip_info,
+    bool is_ipv6
+){
+    __u32 vip_miss_stats_key = 0;
+    struct vip_definition* lru_miss_stat_vip = 
+        bpf_map_lookup_elem(&vip_miss_stats, &vip_miss_stats_key);
+    if(!lru_miss_stat_vip) {
+        return XDP_DROP;
+    }
+
+    bool address_match = (is_ipv6 && 
+                            lru_miss_stat_vip->vipv6[0] == vip->vipv6[0] &&
+                            lru_miss_stat_vip->vipv6[1] == vip->vipv6[1] && 
+                            lru_miss_stat_vip->vipv6[2] == vip->vipv6[2] && 
+                            lru_miss_stat_vip->vipv6[3] == vip->vipv6[3]
+                     || !is_ipv6 && lru_miss_stat_vip->vip == vip->vip);
+    bool port_match = lru_miss_stat_vip->port == vip->port;
+    bool proto_match = lru_miss_stat_vip->proto == vip->proto;
+    bool vip_match = address_match && port_match && proto_match;
+    if(vip_match) {
+        __u32 lru_stats_key = pckt->real_index;
+        __u32* lru_miss_stats_ = bpf_map_lookup_elem(&lru_miss_stats, &lru_stats_key);
+        if(!lru_miss_stats_) {
+            return XDP_DROP;
+        }
+
+        *lru_miss_stats_++;
+    }
+    return FURTHER_PROCESSING;
+}
+
 __always_inline static int 
 process_packet(
     struct xdp_md *ctx, 
@@ -574,12 +788,12 @@ process_packet(
 {
     void *data = (void*)(long)ctx->data;
     void *data_end = (void*)(long)ctx->data_end;
-    struct ctl_value* ctlvalue;//存放mac地址和一些信息的结构体
     struct real_definition* dst = NULL;
     struct packet_description pckt = {};
     struct vip_definition vip = {};
     struct vip_meta* vip_info;
     struct lb_stats* data_stats;
+    struct ctl_value* cval;//存放mac地址和一些信息的结构体
     __u64 iph_len;
     __u8 protocol;
     __u16 original_sport;//原本的原端口
@@ -631,6 +845,13 @@ process_packet(
         return action;
     }
     return process_encaped_ipip_pckt(&data, &data_end, ctx, &is_ipv6, &protocol, pass);
+  } else if (protocol == IPPROTO_IPV6) {
+    bool pass = true;
+    action = check_decap_dst(&pckt, is_ipv6, &pass);
+    if(action >= 0) {
+        return action;
+    }
+    return process_encaped_ipip_pckt(&data, &data_end, ctx, &is_ipv6, &protocol, pass);
   }
 #endif //INLINE_DECAP_IPIP
 
@@ -651,7 +872,7 @@ process_packet(
             }
             return process_encaped_gue_pckt(&data, &data_end, ctx, nh_off, is_ipv6, pass);
         }
-#endif
+#endif //INLINE_DECAP_GUE
     } else {
         return XDP_PASS; //交给内核栈
     }
@@ -714,7 +935,7 @@ process_packet(
 
     data_stats->v1++;
 
-    if(vip_info->flags & F_HASH_SRC_DST_ONLY) {
+    if(vip_info->flags & F_HAHS_NO_SRC_PORT) {
         //service，其中 diff src 端口，但同一个 IP 必须去同一个 real，
         pckt.flow.port16[0] = 0;
     }
@@ -826,7 +1047,9 @@ process_packet(
     }
 #endif //UDP_STABLE_ROUTING
 
-
+    /*
+    在进行 Real Selection 之前保存原始 Sport，可能会更改其值。
+    */
     original_sport = pckt.flow.port16[0];//sport
 
 
@@ -856,7 +1079,7 @@ process_packet(
                             incr_server_id_routing_stats(vip_num, false, true);
                         }
                     }
-                    tpr_packets_stats_->sid_routed;
+                    tpr_packets_stats_->sid_routed++;
                 } 
             }
         }
@@ -908,20 +1131,60 @@ process_packet(
             }
             
             // 2025-2-6-21:56
-            if(!get_packet_dst(&dst, &pckt, vip_info, is_ipv6)) {
+            if(!get_packet_dst(&dst, &pckt, vip_info, is_ipv6, lru_map)) {
                 return XDP_DROP;
             }
 
-
-            
-
-
+            if(update_vip_lru_miss_stats(&vip, &pckt, vip_info, is_ipv6)) {
+                return XDP_DROP;
+            }
+            data_stats->v2++;
         }
-
-
-
     }
 
+    cval = bpf_map_lookup_elem(&ctl_array, &mac_addr_pos);
+
+    if(!cval) {
+        return XDP_DROP;
+    }
+
+    data_stats = bpf_map_lookup_elem(&stats, &vip_num); 
+    {
+        if(!data_stats) {
+            return XDP_DROP;
+        }
+        data_stats->v1++;
+        data_stats->v2+= pkt_bytes; //数据包的大小
+    }
+
+    data_stats = bpf_map_lookup_elem(&reals_stats, &pckt.real_index);
+    if(!data_stats) {
+        return XDP_DROP;
+    }
+
+    data_stats->v1++;
+    data_stats->v2+= pkt_bytes;
+
+    //local_delivery_optimization 本地配送优化
+#ifdef LOCAL_DELIVERY_OPTIMIZATION
+    if((vip_info->flags & F_LOCAL_VIP) && (dst->flags & F_LOCAL_REAL)) {
+        return XDP_PASS;
+    }
+#endif
+
+    //封装操作
+    //恢复原始 sport 值，将其用作 GUE 运动的种子
+    pckt.flow.port16[0] = original_sport;
+    if(dst->flags & F_IPV6) {
+        if(!PCKT_ENCAP_V6(ctx, cval, is_ipv6, &pckt, dst, pkt_bytes)) {
+            return XDP_DROP;
+        }
+    } else {
+        if(!PCKT_ENCAP_V4(ctx, cval, is_ipv6, &pckt, dst, pkt_bytes)) {
+            return XDP_DROP;
+        }
+    }
+    return XDP_TX;
 }
 
 

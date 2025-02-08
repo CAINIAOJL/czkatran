@@ -10,9 +10,103 @@
 #include <bpf/bpf_helpers.h>
 #include "balancer_consts.h"
 #include "balancer_structs.h"
+#include "encap_helpers.h"
 
+//~
+//默认使用 [ip(6?)ip6] = ipip隧道技术
+__always_inline static bool encap_v6(
+    struct xdp_md* ctx,
+    struct ctl_value* cval,
+    bool is_ipv6,
+    struct packet_description* pkt,
+    struct real_definition* dst,
+    __u32 pkt_bytes
+)
+{
+    void* data;
+    void* data_end;
+    struct ipv6hdr* ip6_hdr;
+    struct ethhdr* new_eth;
+    struct ethhdr* old_eth;
+    __u16 payload_len;
+    __u32 saddr[4];
+    __u8 proto;
 
+    //向前扩张sizeof(struct ipv6hdr)大小
+    if(XDP_ADJUST_HEAD_FUNC(ctx, 0 - (int)sizeof(struct  ipv6hdr))) {
+        return false;
+    }
+    data = (void*)(long)ctx->data;
+    data_end = (void*)(long)ctx->data_end;
+    new_eth = data; //(struct ethhdr*)data
+    old_eth = data + sizeof(struct ipv6hdr);//(struct ethhdr*)(data + sizeof(struct ipv6hdr))
+    ip6_hdr = data + sizeof(struct ethhdr);//(struct ipv6hdr*)(data + sizeof(struct ethhdr))
 
+    if(new_eth + 1 > data_end || old_eth + 1 > data_end || ip6_hdr + 1 > data_end) {
+        return false; //调整失败
+    }
+    
+    //构建mac帧
+    memcpy(new_eth->h_dest, cval->mac, 6);
+    memcpy(new_eth->h_source, old_eth->h_dest, 6);
+
+    new_eth->h_proto = BE_ETH_P_IPV6;
+
+    //构建outer_ipv6的原IP地址
+    if(is_ipv6) {
+        proto = IPPROTO_IPV6; 
+        create_encap_ipv6_src(pkt->flow.port16[0], pkt->flow.srcv6[3], saddr);
+        payload_len = pkt_bytes + sizeof(struct ipv6hdr);
+    } else {
+        proto = IPPROTO_IPIP;
+        create_encap_ipv6_src(pkt->flow.port16[0], pkt->flow.src, saddr);
+        payload_len = pkt_bytes;
+    }
+
+    create_v6_hdr(ip6_hdr, pkt->tos, saddr, dst->dstv6, payload_len, proto);
+    return true;
+}
+
+//~
+//ipip encap
+__always_inline static bool encap_v4(
+    struct xdp_md* ctx,
+    struct ctl_value* cval,
+    bool is_ipv6,
+    struct packet_description* pkt,
+    struct real_definition* dst,
+    __u32 pkt_bytes
+)
+{
+    void* data;
+    void* data_end;
+    struct iphdr* ip_hdr;
+    struct ethhdr* new_eth, *old_eth;
+
+    if(XDP_ADJUST_HEAD_FUNC(ctx, 0 - (int)sizeof(struct iphdr))) {
+        return false;
+    }
+
+    data = (void*)(long)ctx->data;
+    data_end = (void*)(long)ctx->data_end;
+    new_eth = (struct ethhdr*)data;
+    old_eth = (struct ethhdr*)(data + sizeof(struct iphdr));
+    ip_hdr = (struct iphdr*)(data + sizeof(struct ethhdr));
+    
+    if(new_eth + 1 > data_end || old_eth + 1 > data_end || ip_hdr + 1 > data_end) {
+        return false;
+    }
+
+    memcpy(new_eth->h_dest, cval->mac, 6);
+    memcpy(new_eth->h_source, old_eth->h_dest, 6);
+    new_eth->h_proto = BE_ETH_P_IP;
+
+    //私网ip
+    __u32 ip_src = create_encap_ipv4_src(pkt->flow.port16[0], pkt->flow.src);
+    create_v4_hdr(ip_hdr, pkt->tos, ip_src, dst->dst, pkt_bytes, IPPROTO_IPIP);
+
+    return true;
+}
 
 
 

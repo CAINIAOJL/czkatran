@@ -377,6 +377,7 @@ __always_inline static struct quic_parse_result parse_quic(
 }
 
 
+//~
 __always_inline static struct udp_stable_rt_result parse_udp_stable_rt_hdr(
     void* data,
     void* data_end,
@@ -415,7 +416,6 @@ __always_inline static struct udp_stable_rt_result parse_udp_stable_rt_hdr(
     return result;
 }
 
-#endif
 
 
 #ifdef TCP_SERVER_ID_ROUTING
@@ -453,4 +453,6 @@ __always_inline static int tcp_hdr_opt_lookup(
     }
     return 0;
 }
-#endif // TCP_SERVER_ID_ROUTING
+#endif // TCP_SERVER_ID_ROUTING'
+
+#endif // __PACKET_PARSE_H__

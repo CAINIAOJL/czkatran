@@ -2,6 +2,7 @@
 #ifndef BALANCER_CONSTS_H
 #define BALANCER_CONSTS_H
 
+#define CTL_MAP_SIZE 16
 
 //xdp_md中的proto字段
 #define BE_ETH_P_IP 8
@@ -40,15 +41,25 @@
 
 //FLAGS
 #define F_ICMP (1 << 0)
+
+#define F_IPV6 (1 << 0)
+
 #define F_SYN_SET (1 << 1)
 
 #define F_HAHS_NO_SRC_PORT (1 << 0)
 
 #define F_LRU_BYPASS (1 << 1)
 
+#define F_LOCAL_REAL (1 << 1)
+
 #define F_QUIC_VIP (1 << 2)
 
 #define F_HASH_DPORT_ONLY (1 << 3)
+
+//FMP算法
+#define F_SRC_ROUTING (1 << 4)
+
+#define F_LOCAL_VIP (1 << 5)
 
 #define F_GLOBAL_LRU (1 << 6)
 
@@ -179,6 +190,8 @@ type 和两个 LSB 位用于对连接 ID 版本 type 进行编码
 
 #endif //SERVER_ID_HASH_MAP
 
+#define ONE_SEC 1000000000U // 1 sec in nanosec
+
 
 #ifndef MAX_VIPS
 #define MAX_VIPS 512
@@ -224,6 +237,14 @@ type 和两个 LSB 位用于对连接 ID 版本 type 进行编码
 
 #define QUIC_STATS_MAP_SIZE 1
 
+#ifndef INIT_JHSAH_SEED
+#define INIT_JHSAH_SEED CH_RING_SIZE
+#endif
+
+#ifndef INIT_JHASH_SEED_V6
+#define INIT_JHASH_SEED_V6 MAX_VIPS
+#endif
+
 
 #define LRU_CNTRS 0
 
@@ -233,11 +254,20 @@ type 和两个 LSB 位用于对连接 ID 版本 type 进行编码
 
 #define TPR_STATS_MAP_SIZE 1
 
+//用于syn flood防御
+#define NEW_CONN_RATE_CNTR 2
+
 #define FALLBACK_LRU_CNTRS 3
+
+#define LPM_SRC_CNTRS 5
+
 //远程封装数据包计数器的偏移量
 #define REMOTE_ENCAP_CNTRS 6
 
 #define GLOBAL_LRU_CNTRS 8
+
+//记录ch未初始化状态
+#define CH_DROP_STATS 9 
 
 #define DECAP_CNTR 10
 
@@ -247,14 +277,70 @@ type 和两个 LSB 位用于对连接 ID 版本 type 进行编码
 
 #define ICMP_PTB_V4_STATS 13
 
+/*
+对于 LRU 更新，每个内核每秒的最大新连接数 a如果我们超过此值 
+- 我们将绕过 LRU 更新。
+*/
+#ifndef MAX_CONN_RATE
+#define MAX_CONN_RATE 125000
+#endif
 
-
-
+#ifndef MAX_LPM_SRC
+#define MAX_LPM_SRC 3000000
+#endif
 
 #define DST_MATCH_IN_LRU 0
 #define DST_MISMATCH_IN_LRU 1
 #define DST_NOT_FOUND_IN_LRU 2
 
 
+#ifdef GUE_ENCAP
+#define PCKT_ENCAP_V4 gue_encap_v4
+#define PCKT_ENCAP_V6 gue_encap_v6
+#define HC_ENCAP hc_encap_gue
+#else
+#define PCKT_ENCAP_V4 encap_v4
+#define PCKT_ENCAP_V6 encap_v6
+#define HC_ENCAP hc_encap_ipip
+#endif
 
+//The Internet Assigned Numbers Authority (IANA) has reserved the
+//   following three blocks of the IP address space for private internets:
+
+//     10.0.0.0        -   10.255.255.255  (10/8 prefix)
+//     172.16.0.0      -   172.31.255.255  (172.16/12 prefix)
+//     192.168.0.0     -   192.168.255.255 (192.168/16 prefix)
+#ifndef IPIP_V4_PREFIX
+#define IPIP_V4_PREFIX 4268
+#endif
+
+//根据本文件，IANA已将IPv6地址前缀0100:：/64的分配记录为“Internet协议版本6地址空间”中的仅丢弃前缀，
+//并将前缀添加到“IANA IPv6专用地址注册表”[IANA-IPV6REG]。
+//尚未将任何结束方分配给此前缀。前缀已从以下位置分配
+
+#ifndef IPIP_V6_PREFIX1
+#define IPIP_V6_PREFIX1 1
+#endif
+
+#ifndef IPIP_V6_PREFIX2
+#define IPIP_V6_PREFIX2 0
+#endif
+
+#ifndef IPIP_V6_PREFIX3
+#define IPIP_V6_PREFIX3 0
+#endif
+
+// 指定是否将内部数据包 DSCP 值复制到外部 Encapped 数据包
+//1000 – minimize delay ** #最小延迟**
+//0100 – maximize throughput #最大吞吐量
+//0010 – maximize reliability #最高可靠性
+//0001 – minimize monetary cost** #最小费用**0000 – normal service** #一般服务**
+#ifndef COPY_INNER_PACKET_TOS
+#define COPY_INNER_PACKET_TOS 1
+#endif
+
+// 默认TOS
+#ifndef DEFAULT_TOS
+#define DEFAULT_TOS 0
+#endif
 #endif // BALANCER_CONSTS_H

@@ -12,8 +12,7 @@
 #include "csum_helpers.h"
 
 
-
-
+//~
 #ifdef INLINE_DECAP_GENERIC
 __always_inline static int recirculate(
     struct xdp_md* ctx
@@ -24,6 +23,7 @@ __always_inline static int recirculate(
 }
 #endif //INLINE_DECAP_GENERIC
 
+//~
 __always_inline static int decrement_ttl(
     void* data,
     void* data_end,

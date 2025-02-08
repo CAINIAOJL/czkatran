@@ -104,6 +104,7 @@
         "handle_icmp.h": "c",
         "balancer_maps.h": "c",
         "control_data_maps.h": "c",
-        "csum_helpers.h": "c"
+        "csum_helpers.h": "c",
+        "jhash.h": "c"
     }
 }

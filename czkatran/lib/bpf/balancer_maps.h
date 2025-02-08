@@ -6,6 +6,15 @@
 #include "balancer_consts.h"
 #include "balancer_structs.h"
 
+struct {
+    __uint(type, BPF_MAP_TYPE_ARRAY);
+    __uint(max_entries, CTL_MAP_SIZE);
+    __type(key, __u32);
+    __type(value, struct ctl_value);
+} ctl_array SEC(".maps");
+
+
+
 //存放vip信息：vip地址和端口对应hash环的num序号
 struct {
     __uint(type, BPF_MAP_TYPE_HASH);//hash表
@@ -77,6 +86,13 @@ struct {
 
 struct {
     __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+    __uint(max_entries, MAX_REALS);
+    __type(key, __u32);
+    __type(value, struct lb_stats);
+} reals_stats SEC(".maps");
+
+struct {
+    __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
     __uint(max_entries, MAX_VIPS);
     __type(key, __u32);
     __type(value, struct lb_stats);
@@ -122,3 +138,46 @@ struct {
 } fallback_glru SEC(".maps");
 
 #endif
+
+
+#ifdef LPM_SRC_LOOKUP
+
+struct {
+    //LPM路由
+    __uint(type, BPF_MAP_TYPE_LPM_TRIE);
+    __uint(max_entries, MAX_LPM_SRC);
+    __type(key, struct v4_lpm_key);
+    __type(value, __u32)
+} lpm_src_v4 SEC(".maps");
+
+struct {
+    __uint(type, BPF_MAP_TYPE_LPM_TRIE);
+    __uint(max_entries, MAX_LPM_SRC);
+    __type(key, struct v6_lpm_key);
+    __type(value, __u32)
+} lpm_src_v6 SEC(".maps");
+
+#endif
+
+
+struct {
+    __uint(type, BPF_MAP_TYPE_ARRAY);
+    __uint(max_entries, CH_RING_SIZE);
+    __type(key, __u32);
+    __type(value, __u32);
+}ch_rings SEC(".maps");
+
+
+struct {
+    __uint(type, BPF_MAP_TYPE_ARRAY);
+    __uint(max_entries, 1);
+    __type(key, __u32);
+    __type(value, struct vip_definition);
+} vip_miss_stats SEC(".maps");
+
+struct {
+    __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+    __uint(max_entries, MAX_REALS);
+    __type(key, __u32);
+    __type(value, __u32);
+} lru_miss_stats SEC(".maps");

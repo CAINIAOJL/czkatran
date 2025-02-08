@@ -117,5 +117,16 @@ struct lb_tpr_packets_stats {
     __u64 tcp_syn;
 };
 
+//用于LPM算法
+struct v4_lpm_key {
+    __u32 prefixle;
+    __be32 addr;
+};
+
+struct v6_lpm_key {
+    __u32 prefixlen;
+    __be32 addrv6[4];
+};
+
 
 #endif /* BALANCER_STRUCTS_H */
