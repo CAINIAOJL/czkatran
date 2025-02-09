@@ -10,6 +10,7 @@
 #include <bpf/bpf_endian.h>
 #include "balancer_maps.h"
 #include "csum_helpers.h"
+#include <bpf/bpf_helper_defs.h>
 
 
 
