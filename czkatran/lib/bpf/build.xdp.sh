@@ -1,0 +1,1 @@
+clang -D__KERNEL__ -Wno-unused-value -Wvisibility -Wno-pointer-sign -Wno-compare-distinct-pointer-types -Wvisibility -Wincompatible-pointer-types -O2 -emit-llvm -c -g  balancer.bpf.c -o -| llc -march=bpf -filetype=obj -o balancer.o

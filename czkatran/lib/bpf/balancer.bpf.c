@@ -5,14 +5,13 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#include "/home/jianglei/czkatran/czkatran/lib/linux_includes/jhash.h"
+#include "/home/cainiao/czkatran/czkatran/lib/linux_includes/jhash.h"
 //#include "balancer_maps.h"
 #include "control_data_maps.h"
 #include "balancer_helpers.h"
 #include "packet_encap.h"
 #include "packet_parse.h"
 #include "handle_icmp.h"
-#include "jhash.h"
 
 __always_inline static bool is_under_flood(
     __u32* cur_time
@@ -74,7 +73,7 @@ process_l3_headers(
         pckt->tos = iphdr->tos;
         *protocol = iphdr->protocol;
         pckt->flow.proto = *protocol;
-        pkt_bytes = bpf_ntohs(iphdr->tot_len);
+        *pkt_bytes = bpf_ntohs(iphdr->tot_len);
         nh_off += IPV4_HDR_LEN_NO_OPT; //20
 
         //检测是否是ip分片数据包
@@ -473,7 +472,7 @@ __always_inline static int check_and_update_real_index_in_lru(
     }
     struct real_pos_lru new_dst_lru = {};
     new_dst_lru.pos = pckt->real_index;
-    new_dst_lru.atime = cur_time;
+    bpf_map_update_elem(&lru_map, &pckt->flow, &new_dst_lru, BPF_ANY);
     return DST_NOT_FOUND_IN_LRU;
 }
 
@@ -657,7 +656,7 @@ __always_inline static bool get_packet_dst(
     struct real_pos_lru new_dst = {};
     bool under_flood;
     bool src_found;
-    __u32* cur_time;
+    __u64 cur_time;
     __u32 key;
     __u32 hash;
     __u32* real_pos;
@@ -949,10 +948,10 @@ process_packet(
     运行该程序的处理器的 SMP ID。
     */
     __u32 cpu_num = bpf_get_smp_processor_id();
-    void* lru_map = bpf_map_lookup_elem(&lru_map, &cpu_num);
-    if(!lru_map) {
+    void* lru_map_ = bpf_map_lookup_elem(&lru_mapping, &cpu_num);
+    if(!lru_map_) {
         //没有找到
-        lru_map = &fallback_cache;
+        lru_map_ = &fallback_cache;
         __u32 lru_stats_key = MAX_VIPS + FALLBACK_LRU_CNTRS;
         struct lb_stats* lru_stats = bpf_map_lookup_elem(&stats, &lru_stats_key);
         if(!lru_stats) {
@@ -987,7 +986,7 @@ process_packet(
         } else {
             __u32 quic_packets_stats_key = 0;
             struct lb_quic_packets_stats* quic_packets_stats = 
-                bpf_map_lookup_elem(&quic_packets_stats, &quic_packets_stats_key);
+                bpf_map_lookup_elem(&quic_stats_map, &quic_packets_stats_key);
             if(!quic_packets_stats) {
                 return XDP_DROP;
             }
@@ -995,7 +994,7 @@ process_packet(
             struct quic_parse_result quic_res = parse_quic(data, data_end, is_ipv6, &pckt);
             if(quic_res.server_id > 0) {
                 //增加计数
-                increment_quic_cid_version_stats(&quic_packets_stats, quic_res.cid_version);
+                increment_quic_cid_version_stats(quic_packets_stats, quic_res.cid_version);
                 __u32 key = quic_res.server_id;//以server_id为key，查找真实节点
                 __u32* real_pos = bpf_map_lookup_elem(&server_id_map, &key);
                 if(real_pos) {
@@ -1013,7 +1012,7 @@ process_packet(
                             //发出警告
                             return XDP_DROP; //丢弃数据包
                         }
-                        int res = check_and_update_real_index_in_lru(&pckt, lru_map);
+                        int res = check_and_update_real_index_in_lru(&pckt, lru_map_);
                         if(res == DST_MATCH_IN_LRU) {
                             quic_packets_stats->dst_match_in_lru++;
                         } else if(res == DST_MISMATCH_IN_LRU) {
@@ -1092,7 +1091,7 @@ process_packet(
         if(!dst && 
         !(pckt.flags & F_SYN_SET) && 
         !(vip_info->flags & F_LRU_BYPASS)) {
-            connecttion_table_lookup(&dst, &pckt, lru_map, /*isGloballru*/false);
+            connecttion_table_lookup(&dst, &pckt, lru_map_, /*isGloballru*/false);
         }
 
 #ifdef GLOBAL_LRU_LOOKUP
@@ -1111,7 +1110,7 @@ process_packet(
             if(pckt.flow.proto == IPPROTO_TCP) {
                 __u32 lru_stats_key = MAX_VIPS + LRU_MISS_CNTRS;
                 struct lb_stats* lru_stats = 
-                    bpf_map_lookup_elem(&stats, lru_stats_key);
+                    bpf_map_lookup_elem(&stats, &lru_stats_key);
                 if(!lru_stats) {
                     return XDP_DROP;
                 }
@@ -1131,7 +1130,7 @@ process_packet(
             }
             
             // 2025-2-6-21:56
-            if(!get_packet_dst(&dst, &pckt, vip_info, is_ipv6, lru_map)) {
+            if(!get_packet_dst(&dst, &pckt, vip_info, is_ipv6, lru_map_)) {
                 return XDP_DROP;
             }
 

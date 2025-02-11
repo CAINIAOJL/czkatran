@@ -136,16 +136,16 @@ int BaseBpfAdapter:: textXdpProg(
 BaseBpfAdapter:: BaseBpfAdapter(bool set_limits, 
                                 bool enableBatchOpsIfSupported) {
     libbpf_set_print(libbpf_print);
-    if(set_limits) {
+    /*if(set_limits) {
         //参考EBpf中的一些项目，这里提升系统的资源限制
         struct rlimit rlim = {};
         rlim.rlim_cur = RLIM_INFINITY;
         rlim.rlim_max = RLIM_INFINITY;
-        if (setrlimit(RLIMIT_MEMLOCK, &rlim)) {
+        if (setrlimit(RLIMIT_MEMLOCK, &rlim) != -1) {
             LOG(ERROR) << "Failed to set rlimit for memlock";
             throw std::runtime_error("error while setting rlimit for locked memory");
         }
-    }
+    }*/
 }
 
 BaseBpfAdapter::~BaseBpfAdapter() {

@@ -1,12 +1,12 @@
 #include <glog/logging.h>
 #include <cstdint>
 
-#include "XdpDecap.h"
+#include "/home/cainiao/czkatran/czkatran/decap/XdpDecap.h"
 
 namespace czkatran {
 
 //注意这个bpfAdapter_私有变量
-XdpDecap:: XdpDecap(const XdpDecapConfig& config): config_(config), bpfAdapter_(true, true) {
+XdpDecap:: XdpDecap(const XdpDecapConfig& config): config_(config) {
     //判断是否为独立模式
     if(!config_.mapPath.empty()) {
         isStandalone = false; 

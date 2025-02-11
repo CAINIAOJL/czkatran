@@ -7,11 +7,11 @@
 #include <linux/ipv6.h>
 #include <stddef.h>
 
-#include <bpf/bpf_endian.h>
+
 #include "balancer_maps.h"
 #include "csum_helpers.h"
-#include <bpf/bpf_helper_defs.h>
-
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_endian.h>
 
 
 /*
@@ -45,7 +45,7 @@ __always_inline static int swap_mac_and_send(
     void* data_end
 )
 {
-    struct ethhdr* ethhdr = (struct ethhdr*)data;
+    struct ethhdr* ethhdr = data;
     unsigned char temp_mac[ETH_ALEN];
     memcpy(temp_mac, ethhdr->h_dest, ETH_ALEN);
     memcpy(ethhdr->h_dest, ethhdr->h_source, ETH_ALEN);
@@ -82,9 +82,9 @@ __always_inline static int send_icmp_reply(
     }
 
     off += sizeof(struct ethhdr);
-    ip_hdr = (struct iphdr*)(data + off);
+    ip_hdr = data + off;
     off += sizeof(struct iphdr);
-    icmp_hdr = (struct icmphdr*)(data + off);
+    icmp_hdr = data + off;
     icmp_hdr->type = ICMP_ECHOREPLY;//回应
     /*
     ICMP Echo 和 Reply HDR 之间的唯一区别是类型;
@@ -114,7 +114,7 @@ __always_inline static int parse_icmp(
 ){
     struct icmphdr* icmp_hdr;
     struct iphdr* ip_hdr;
-    icmp_hdr = (struct icmphdr*)(data + nh_off);
+    icmp_hdr = data + nh_off;
 
     if(icmp_hdr + 1 > data_end) {
         return XDP_DROP;
@@ -128,14 +128,14 @@ __always_inline static int parse_icmp(
     if(icmp_hdr->code == ICMP_FRAG_NEEDED) {
         //需要分片
         __u32 stats_key = MAX_VIPS + ICMP_PTB_V4_STATS;
-        struct lb_stats* stats = (struct lb_stats*)bpf_map_lookup_elem(&stats, &stats_key);
-        if(!stats) {
+        struct lb_stats* stats_ = bpf_map_lookup_elem(&stats, &stats_key);
+        if(!stats_) {
             return XDP_DROP;
         }
-        stats->v1++;
+        stats_->v1++;
         __u16 pmtu = bpf_ntohs(icmp_hdr->un.frag.mtu);
         if(pmtu < MAX_MTU_IN_PTB_TO_DROP) {
-            stats->v2++;
+            stats_->v2++;
         }
     }
 
@@ -357,14 +357,14 @@ __always_inline static int parse_icmpv6(
 
     if(icmp6_hdr->icmp6_type == ICMPV6_PKT_TOOBIG) {
         __u32 stats_key = MAX_VIPS + ICMP_PTB_V6_STATS;
-        struct lb_stats* stats = (struct lb_stats*)(bpf_map_lookup_elem(&stats, &stats_key));
-        if(!stats) {
+        struct lb_stats* stats_ = bpf_map_lookup_elem(&stats, &stats_key);
+        if(!stats_) {
             return XDP_DROP;
         }
-        stats->v1++;//记录状态
+        stats_->v1++;//记录状态
         __u32 pmtu = bpf_ntohs(icmp6_hdr->icmp6_mtu);
         if(pmtu < MAX_MTU_IN_PTB_TO_DROP) {
-            stats->v2++;//记录状态
+            stats_->v2++;//记录状态
         }
     }
 

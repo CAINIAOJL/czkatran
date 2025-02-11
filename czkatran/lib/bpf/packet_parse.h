@@ -1,5 +1,4 @@
-#ifndef __PACKET_PARSE_H__
-#define __PACKET_PARSE_H__
+#pragma once
 
 #include <linux/udp.h>
 #include <linux/if_ether.h>
@@ -8,12 +7,14 @@
 #include <linux/icmp.h>
 #include <linux/icmpv6.h>
 #include <linux/ip.h>
-#include <bpf/bpf.h>
 #include <linux/version.h>
 
-#include <bpf/bpf_helpers.h>
 #include "balancer_consts.h"
 #include "balancer_structs.h"
+
+//#include <bpf/bpf.h>
+//#include <bpf/bpf_helpers.h>
+
 
 /*                      QUIC LONG HEADER
 0                   1                   2                   3
@@ -316,7 +317,7 @@ __always_inline static struct quic_parse_result parse_quic(
 
     __u64 off = calc_offset(is_ipv6, is_icmp);
 
-    if(data + off + sizeof(struct udphdr) + sizeof(__u8) > data_end) {
+    if((data + off + sizeof(struct udphdr) + sizeof(__u8)) > data_end) {
         return result;
     }
 
@@ -365,7 +366,7 @@ __always_inline static struct quic_parse_result parse_quic(
    __u8 connIdVersion = (connId[0] >> 6);
    result.cid_version = connIdVersion;
    if(connIdVersion == QUIC_CONNID_VERSION_V1) {
-        result.server_id = ((connId[0] & 0x3F) << 10) | (connId[1] << 2) | (connId[2] << 6);
+        result.server_id = ((connId[0] & 0x3F) << 10) | (connId[1] << 2) | (connId[2] >> 6);
         return result;
    } else if(connIdVersion == QUIC_CONNID_VERSION_V2) {
         result.server_id = (connId[1] << 16) | (connId[2] << 8) | (connId[3]);
@@ -454,5 +455,3 @@ __always_inline static int tcp_hdr_opt_lookup(
     return 0;
 }
 #endif // TCP_SERVER_ID_ROUTING'
-
-#endif // __PACKET_PARSE_H__

@@ -14,8 +14,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef __CSUM_HELPERS_H
-#define __CSUM_HELPERS_H
+#pragma once
 
 #include <linux/in.h>
 #include <linux/ip.h>
@@ -23,7 +22,6 @@
 #include <linux/udp.h>
 #include <stdbool.h>
 
-#include <bpf/bpf.h>
 #include <bpf/bpf_endian.h>
 #include <bpf/bpf_helpers.h>
 
@@ -123,7 +121,7 @@ __always_inline static void ipv6_csum(
   *csum = bpf_csum_diff(0, 0, (unsigned int*)(&tmp), sizeof(__u32), *csum);
 
   *csum = bpf_csum_diff(0, 0, (unsigned int*)data_start, data_size, *csum);
-  *csum = csum_fold_helper(&csum);
+  *csum = csum_fold_helper(*csum);
 }
 
 #ifdef GUE_ENCAP
@@ -375,4 +373,4 @@ __attribute__((__always_inline__)) static inline bool gue_csum_v4_in_v6(
 }
 #endif // of GUE_ENCAP
 
-#endif // of __CSUM_HELPERS_H
+

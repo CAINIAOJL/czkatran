@@ -6,16 +6,13 @@
 #include <stddef.h>
 
 
-//#include <czkatran/lib/linux_includes/bpf.h>
-//#include <czkatran/lib/linux_includes/bpf_helpers.h>
-#include <bpf/bpf.h>
-#include <bpf/bpf_helpers.h>
+#include "/home/cainiao/czkatran/czkatran/decap/bpf/decap.bpf.h"
+#include "/home/cainiao/czkatran/czkatran/lib/bpf/balancer_consts.h"
+#include "/home/cainiao/czkatran/czkatran/lib/bpf/balancer_structs.h"
+#include "/home/cainiao/czkatran/czkatran/lib/bpf/packet_encap.h"
+#include "/home/cainiao/czkatran/czkatran/lib/bpf/packet_parse.h"
 
-#include "/home/jianglei/czkatran/czkatran/decap/bpf/decap.bpf.h"
-#include "/home/jianglei/czkatran/czkatran/lib/bpf/balancer_consts.h"
-#include "/home/jianglei/czkatran/czkatran/lib/bpf/balancer_structs.h"
-#include "/home/jianglei/czkatran/czkatran/lib/bpf/packet_encap.h"
-#include "/home/jianglei/czkatran/czkatran/lib/bpf/packet_parse.h"
+#include <bpf/bpf_helpers.h>
 
 //decap 解封装
 //encap 封装
@@ -132,7 +129,7 @@ __always_inline static int process_encaped_gue_packet(void ** data,
     return FURTHER_PROCESSING;
 }
 #endif //INLINE_DECAP_GUE
-
+#ifdef INLINE_DECAP_GUE
 __always_inline static void validate_tpr_server_id(void *data,
                                                    __u64 off, 
                                                    void *data_end, 
@@ -168,7 +165,7 @@ __always_inline static void validate_tpr_server_id(void *data,
         }
     }
 }
-
+#endif
 
 
 
@@ -342,7 +339,7 @@ __always_inline static int process_packet(void *data,
 
         }
     }
-#endif
+#endif //INLINE_DECAP_GUE
 }
 
 
@@ -350,7 +347,7 @@ __always_inline static int process_packet(void *data,
 
 //~
 SEC(DECAP_PROG_SEC)
-int xdp_decap(struct xdp_md *ctx) {
+int xdpdecap(struct xdp_md *ctx) {
     //具体可以查看Linux源码分析tcp/ip实现中的对于sk__buffer的描述，非常详细
     void *data = (void *)(long)(ctx->data);
     void *data_end = (void *)(long)(ctx->data_end);

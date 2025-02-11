@@ -1,0 +1,62 @@
+==10811== Memcheck, a memory error detector
+==10811== Copyright (C) 2002-2024, and GNU GPL'd, by Julian Seward et al.
+==10811== Using Valgrind-3.24.0 and LibVEX; rerun with -h for copyright info
+==10811== Command: ./xdp
+==10811== Parent PID: 3570
+==10811== 
+==10811== Invalid read of size 8
+==10811==    at 0x12734A: std::_Hashtable<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, bpf_object*>, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, bpf_object*> >, std::__detail::_Select1st, std::equal_to<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::hash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<true, false, true> >::size() const (hashtable.h:648)
+==10811==    by 0x125C49: std::_Hashtable<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, bpf_object*>, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, bpf_object*> >, std::__detail::_Select1st, std::equal_to<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::hash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<true, false, true> >::find(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) (hashtable.h:1669)
+==10811==    by 0x124E4C: std::unordered_map<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, bpf_object*, std::hash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::equal_to<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, bpf_object*> > >::find(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) (unordered_map.h:876)
+==10811==    by 0x1212EC: czkatran::BpfLoader::loadBpfObject(bpf_object*, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, bpf_prog_type) (BpfLoader.cc:168)
+==10811==    by 0x120DBD: czkatran::BpfLoader::loadBpfFile(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, bpf_prog_type, bool) (BpfLoader.cc:129)
+==10811==    by 0x140662: czkatran::BpfAdapter::loadBpfProg(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, bpf_prog_type, bool) (BpfAdapter.cc:16)
+==10811==    by 0x11E987: czkatran::XdpDecap::loadXdpDecap() (XdpDecap.cc:56)
+==10811==    by 0x116DF5: main (xdpdecap_tester.cc:80)
+==10811==  Address 0x18 is not stack'd, malloc'd or (recently) free'd
+==10811== 
+==10811== 
+==10811== Process terminating with default action of signal 11 (SIGSEGV)
+==10811==  Access not within mapped region at address 0x18
+==10811==    at 0x12734A: std::_Hashtable<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, bpf_object*>, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, bpf_object*> >, std::__detail::_Select1st, std::equal_to<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::hash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<true, false, true> >::size() const (hashtable.h:648)
+==10811==    by 0x125C49: std::_Hashtable<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, bpf_object*>, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, bpf_object*> >, std::__detail::_Select1st, std::equal_to<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::hash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<true, false, true> >::find(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) (hashtable.h:1669)
+==10811==    by 0x124E4C: std::unordered_map<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, bpf_object*, std::hash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::equal_to<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, bpf_object*> > >::find(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) (unordered_map.h:876)
+==10811==    by 0x1212EC: czkatran::BpfLoader::loadBpfObject(bpf_object*, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, bpf_prog_type) (BpfLoader.cc:168)
+==10811==    by 0x120DBD: czkatran::BpfLoader::loadBpfFile(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, bpf_prog_type, bool) (BpfLoader.cc:129)
+==10811==    by 0x140662: czkatran::BpfAdapter::loadBpfProg(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, bpf_prog_type, bool) (BpfAdapter.cc:16)
+==10811==    by 0x11E987: czkatran::XdpDecap::loadXdpDecap() (XdpDecap.cc:56)
+==10811==    by 0x116DF5: main (xdpdecap_tester.cc:80)
+==10811==  If you believe this happened as a result of a stack
+==10811==  overflow in your program's main thread (unlikely but
+==10811==  possible), you can try to increase the size of the
+==10811==  main thread stack using the --main-stacksize= flag.
+==10811==  The main thread stack size used in this run was 8388608.
+==10811== 
+==10811== HEAP SUMMARY:
+==10811==     in use at exit: 112,182 bytes in 456 blocks
+==10811==   total heap usage: 819 allocs, 363 frees, 177,160 bytes allocated
+==10811== 
+==10811== LEAK SUMMARY:
+==10811==    definitely lost: 0 bytes in 0 blocks
+==10811==    indirectly lost: 0 bytes in 0 blocks
+==10811==      possibly lost: 0 bytes in 0 blocks
+==10811==    still reachable: 112,182 bytes in 456 blocks
+==10811==         suppressed: 0 bytes in 0 blocks
+==10811== Reachable blocks (those to which a pointer was found) are not shown.
+==10811== To see them, rerun with: --leak-check=full --show-leak-kinds=all
+==10811== 
+==10811== ERROR SUMMARY: 1 errors from 1 contexts (suppressed: 0 from 0)
+==10811== 
+==10811== 1 errors in context 1 of 1:
+==10811== Invalid read of size 8
+==10811==    at 0x12734A: std::_Hashtable<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, bpf_object*>, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, bpf_object*> >, std::__detail::_Select1st, std::equal_to<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::hash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<true, false, true> >::size() const (hashtable.h:648)
+==10811==    by 0x125C49: std::_Hashtable<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, bpf_object*>, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, bpf_object*> >, std::__detail::_Select1st, std::equal_to<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::hash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<true, false, true> >::find(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) (hashtable.h:1669)
+==10811==    by 0x124E4C: std::unordered_map<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, bpf_object*, std::hash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::equal_to<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, bpf_object*> > >::find(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) (unordered_map.h:876)
+==10811==    by 0x1212EC: czkatran::BpfLoader::loadBpfObject(bpf_object*, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, bpf_prog_type) (BpfLoader.cc:168)
+==10811==    by 0x120DBD: czkatran::BpfLoader::loadBpfFile(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, bpf_prog_type, bool) (BpfLoader.cc:129)
+==10811==    by 0x140662: czkatran::BpfAdapter::loadBpfProg(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, bpf_prog_type, bool) (BpfAdapter.cc:16)
+==10811==    by 0x11E987: czkatran::XdpDecap::loadXdpDecap() (XdpDecap.cc:56)
+==10811==    by 0x116DF5: main (xdpdecap_tester.cc:80)
+==10811==  Address 0x18 is not stack'd, malloc'd or (recently) free'd
+==10811== 
+==10811== ERROR SUMMARY: 1 errors from 1 contexts (suppressed: 0 from 0)

@@ -36,3 +36,4 @@ $(obj)/bpf/%.o: $(src)/bpf/%.c
 	$(DEBUGBPF) -D__KERNEL__ -Wno-unused-value -Wno-pointer-sign \
 		-Wno-compare-distinct-pointer-types \
 		-O2 -emit-llvm -c -g $< -o -| $(LLC) -march=bpf -filetype=obj -o $@
+	clang -D__KERNEL__ -Wno-unused-value -Wno-pointer-sign -Wno-compare-distinct-pointer-types -O2 -emit-llvm -c -g bpf/decap.bpf.c -o -| llc -march=bpf -filetype=obj -o decap_kern.o

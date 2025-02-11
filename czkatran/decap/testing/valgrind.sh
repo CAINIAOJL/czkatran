@@ -1,0 +1,1 @@
+valgrind --leak-check=full --log-file=text.txt -s ./xdp

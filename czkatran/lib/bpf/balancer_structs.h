@@ -1,5 +1,4 @@
-#ifndef BALANCER_STRUCTS_H
-#define BALANCER_STRUCTS_H
+#pragma once
 
 //所有用到的结构体定义
 
@@ -128,5 +127,3 @@ struct v6_lpm_key {
     __be32 addrv6[4];
 };
 
-
-#endif /* BALANCER_STRUCTS_H */

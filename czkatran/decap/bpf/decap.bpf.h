@@ -1,11 +1,11 @@
-#ifndef DECAP_BPF_H__
-#define DECAP_BPF_H__
+#pragma once
 
 //#include <czkatran/lib/linux_includes/bpf.h>
 //#include <czkatran/lib/linux_includes/bpf_helpers.h>
-#include <bpf/btf.h>
+#include "/home/cainiao/czkatran/czkatran/lib/bpf/balancer_consts.h"
+
+#include "/home/cainiao/czkatran/czkatran/lib/linux_includes/bpf.h"
 #include <bpf/bpf_helpers.h>
-#include "/home/jianglei/czkatran/czkatran/lib/bpf/balancer_consts.h"
 // maps used by LB decap
 
 #ifndef DECAP_STATS_MAP_SIZE
@@ -30,10 +30,10 @@ struct {
 
 struct {
     __uint(type, BPF_MAP_TYPE_ARRAY);
-    __uint(maxentrie, DECAP_STATS_MAP_SIZE);
+    __uint(max_entries, DECAP_STATS_MAP_SIZE);
     __type(key, __u32);
     __type(value, __u32);
 } tpr_server_id SEC(".maps");
 
-#endif /* __DECAP_BPF_H__ */
+
 

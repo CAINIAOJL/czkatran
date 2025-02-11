@@ -22,7 +22,7 @@ void checkBpfProgType(::bpf_object *obj, ::bpf_prog_type type) {
     if(type == BPF_PROG_TYPE_UNSPEC) {
         return;
     }
-    ::bpf_program *prog;
+    ::bpf_program *prog = NULL;
     bpf_object__for_each_program(prog, obj) {
         CHECK_EQ(bpf_program__type(prog), type);
     }
@@ -164,21 +164,21 @@ int BpfLoader:: loadBpfObject(
         const bpf_prog_type type
       ) {
 
-    auto it = bpf_Name_Objects_.find(objName);
-    if(it != bpf_Name_Objects_.end()) {
+    //auto it = bpf_Name_Objects_.find(objName);
+    if(bpf_Name_Objects_.find(objName) != bpf_Name_Objects_.end()) {
         LOG(ERROR) << "BPF object name already exists: " << objName;
         return closeBpfObject(obj);
     }
 
-    ::bpf_program *program;
-    ::bpf_map * map;
+    ::bpf_program *program = NULL;
+    ::bpf_map * map = NULL;
     std::set<std::string> loaderProgNames;
     std::set<std::string> loaderMapNames;
     
     bpf_object__for_each_program(program, obj) {
         bpf_program__set_log_level(program, 4);
-        auto it = progs_Name_Fd_.find(bpf_program__name(program));
-        if(it != progs_Name_Fd_.end()) {
+        //auto it = BpfLoader::progs_Name_Fd_.find(bpf_program__name(program));
+        if(progs_Name_Fd_.find(bpf_program__name(program)) != progs_Name_Fd_.end()) {
             LOG(ERROR) << "BPF program name already exists: " << bpf_program__name(program);
             return closeBpfObject(obj);
         }

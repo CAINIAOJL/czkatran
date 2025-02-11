@@ -1,17 +1,17 @@
-#ifndef __PACKET_ENCAP_H__
-#define __PACKET_ENCAP_H__
+#pragma once
 
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/if_ether.h>
 #include <string.h>
 
-#include <bpf/bpf.h>
-#include <bpf/bpf_helpers.h>
+
 #include "balancer_consts.h"
 #include "balancer_structs.h"
 #include "encap_helpers.h"
 
+
+#include <bpf/bpf_helpers.h>
 //~
 //默认使用 [ip(6?)ip6] = ipip隧道技术
 __always_inline static bool encap_v6(
@@ -122,13 +122,13 @@ __always_inline static bool encap_v4(
 __always_inline static bool decap_v6(struct xdp_md *xdp,
                                     void **data,
                                     void **data_end,
-                                    bool *isnner_ipv4) {
+                                    bool isnner_ipv4) {
     struct ethhdr *eth_new;
     struct ethhdr *eth_old;
-    eth_old = (struct ethhdr *) *data;
-    eth_new = (struct ethhdr *)*data + sizeof(struct ipv6hdr);
-    memcpy(eth_new->h_source, eth_old->h_source, sizeof(eth_new->h_source));
-    memcpy(eth_new->h_dest, eth_old->h_dest, sizeof(eth_new->h_dest));
+    eth_old = *data;
+    eth_new = *data + sizeof(struct ipv6hdr);
+    memcpy(eth_new->h_source, eth_old->h_source, 6);
+    memcpy(eth_new->h_dest, eth_old->h_dest, 6);
     if(isnner_ipv4) {
         eth_new->h_proto = BE_ETH_P_IP;
     } else {
@@ -156,10 +156,10 @@ __always_inline static bool decap_v4(struct xdp_md *xdp,
                                      void **data_end) {
     struct ethhdr *eth_new;
     struct ethhdr *eth_old;
-    eth_old = (struct ethhdr *)(*data);
-    eth_new = (struct ethhdr *)(*data + sizeof(struct iphdr));
-    memcpy(eth_new->h_source, eth_old->h_source, sizeof(eth_new->h_source));
-    memcpy(eth_new->h_dest, eth_old->h_dest, sizeof(eth_new->h_dest));
+    eth_old = *data;
+    eth_new = *data + sizeof(struct iphdr);
+    memcpy(eth_new->h_source, eth_old->h_source, 6);
+    memcpy(eth_new->h_dest, eth_old->h_dest, 6);
     eth_new->h_proto = BE_ETH_P_IP;
 
     if(XDP_ADJUST_HEAD_FUNC(xdp, sizeof(struct iphdr))) {
@@ -212,5 +212,4 @@ __always_inline static bool gue_decap_v6(struct xdp_md *xdp, void **data, void *
 #endif //INLINE_DECAP_GUE
 
 
-#endif //__PACKET_ENCAP_H__
 

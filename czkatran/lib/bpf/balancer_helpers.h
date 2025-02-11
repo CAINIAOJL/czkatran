@@ -4,7 +4,7 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <stdbool.h>
-
+#include <string.h>
 
 #include "balancer_consts.h"
 #include "balancer_structs.h"

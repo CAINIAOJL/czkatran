@@ -1,10 +1,10 @@
 #pragma once
 
-#include <bpf/bpf.h>
-#include <bpf/bpf_helpers.h>
-
+#include "/home/cainiao/czkatran/czkatran/lib/linux_includes/bpf.h"
 #include "balancer_consts.h"
 #include "balancer_structs.h"
+
+#include <bpf/bpf_helpers.h>
 
 struct {
     __uint(type, BPF_MAP_TYPE_ARRAY);
@@ -13,7 +13,12 @@ struct {
     __type(value, struct ctl_value);
 } ctl_array SEC(".maps");
 
-
+struct {
+    __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+    __uint(max_entries, QUIC_STATS_MAP_SIZE);
+    __type(key, __u32);
+    __type(value, struct lb_quic_packets_stats);
+} quic_stats_map SEC(".maps");
 
 //存放vip信息：vip地址和端口对应hash环的num序号
 struct {
@@ -38,12 +43,6 @@ struct {
     __type(value, struct lb_stats);
 } stats SEC(".maps");
 
-struct {
-    __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
-    __uint(max_entries, QUIC_STATS_MAP_SIZE);
-    __type(key, __u32);
-    __type(value, struct lb_quic_packets_stats);
-} quic_stats_map SEC(".maps");
 
 struct {
     __uint(type, BPF_MAP_TYPE_ARRAY);

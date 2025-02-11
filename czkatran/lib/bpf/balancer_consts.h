@@ -1,6 +1,5 @@
 // 所有用到的宏
-#ifndef BALANCER_CONSTS_H
-#define BALANCER_CONSTS_H
+#pragma once
 
 #define CTL_MAP_SIZE 16
 
@@ -343,4 +342,3 @@ type 和两个 LSB 位用于对连接 ID 版本 type 进行编码
 #ifndef DEFAULT_TOS
 #define DEFAULT_TOS 0
 #endif
-#endif // BALANCER_CONSTS_H

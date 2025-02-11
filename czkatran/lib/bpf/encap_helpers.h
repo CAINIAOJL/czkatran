@@ -4,13 +4,13 @@
 #include <linux/udp.h>
 #include <string.h>
 
-#include <bpf/bpf_endian.h>
-#include <bpf/bpf.h>
-#include <bpf/bpf_helpers.h>
 
 #include "balancer_consts.h"
 #include "balancer_structs.h"
 #include "csum_helpers.h"
+
+#include <bpf/bpf_endian.h>
+#include <bpf/bpf_helpers.h>
 
 //~
 __always_inline static void create_encap_ipv6_src(
