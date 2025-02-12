@@ -1,5 +1,5 @@
 #include "BpfAdapter.h"
-
+#include <iostream>
 
 namespace czkatran {
 
@@ -13,6 +13,7 @@ int BpfAdapter:: loadBpfProg(const std::string& bpf_prog,
                        const bpf_prog_type type,
                        bool use_names) {
     // gdb debug
+    std::cout << "in BpfAdapter loadBpfProg" <<std::endl;
     return bpf_loader_.loadBpfFile(bpf_prog, type, use_names);
     // gdb bubug
 }

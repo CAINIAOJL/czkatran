@@ -180,3 +180,19 @@ struct {
     __type(key, __u32);
     __type(value, __u32);
 } lru_miss_stats SEC(".maps");
+
+#ifdef SERVER_ID_HASH_MAP
+struct {
+    __uint(type, BPF_MAP_TYPE_HASH);
+    __uint(max_entries, MAX_NUM_SERVER_IDS);
+    __type(key, __u32);
+    __type(value, __u32);
+} server_id_map SEC(".maps");
+#else
+/*struct {
+    __uint(type, BPF_MAP_TYPE_ARRAY);
+    __uint(max_entries, MAX_QUIC_REALS);
+    __type(key, __u32);
+    __type(value, __u32);
+} server_id_map SEC(".maps");*/
+#endif

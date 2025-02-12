@@ -141,7 +141,7 @@ bool BpfTester::runBpfTesterFromFixture(int prog_fd,
 
     uint32_t output_pckt_size {0};
     uint32_t prog_ret_val {0};
-    uint64_t pckt_num {0};
+    uint64_t pckt_num {1};
     std::string ret_val_str;
     std::string test_result;
     uint64_t packetRoutedThroughGloballrubefore {0};
@@ -168,6 +168,8 @@ bool BpfTester::runBpfTesterFromFixture(int prog_fd,
         }
         VLOG(2) << "Running test for pckt #" << pckt_num
                 << " wtih description: " << config_.testData[i].description;
+        LOG(INFO) << "Running test for pckt #" << pckt_num
+                  << " wtih description: " << config_.testData[i].description;
         auto res = adapter_.textXdpProg(
             prog_fd,
             KTestRepeatCount,

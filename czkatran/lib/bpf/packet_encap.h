@@ -193,16 +193,21 @@ __always_inline static bool gue_decap_v4(struct xdp_md *xdp, void **data, void *
 }
 
 //~
-__always_inline static bool gue_decap_v6(struct xdp_md *xdp, void **data, void **data_end bool inner_v4) {
+__always_inline static bool gue_decap_v6(struct xdp_md *xdp, void **data, void **data_end, bool inner_v4) {
     struct ethhdr *eth_new;
     struct ethhdr *eth_old;
     eth_old = (struct ethhdr *)(*data);
-    eth_new = (struct ethhdr *)(*data + sizeof(struct ipv6hdr) + sizeof(udphdr));
+    eth_new = (struct ethhdr *)(*data + sizeof(struct ipv6hdr) + sizeof(struct udphdr));
     //RECORD_GUE_ROUTE(eth_old, eth_new, *data_end, true, false);//?
     memcpy(eth_new->h_source, eth_old->h_source, sizeof(eth_new->h_source));
     memcpy(eth_new->h_dest, eth_old->h_dest, sizeof(eth_new->h_dest));
-    eth_new->proto = inner_v4 ? BE_ETH_P_IP : BE_ETH_P_IPV6;
-    if(XDP_ADJUST_HEAD_FUNC(xdp, (int)(sizeof(struct ipv6hdr) + sizeof(udphdr)))) {
+    //eth_new->proto = inner_v4 ? BE_ETH_P_IP : BE_ETH_P_IPV6;
+    if (inner_v4) {
+        eth_new->h_proto = BE_ETH_P_IP;
+    } else {
+        eth_new->h_proto = BE_ETH_P_IPV6;
+    }
+    if(XDP_ADJUST_HEAD_FUNC(xdp, (int)(sizeof(struct ipv6hdr) + sizeof(struct udphdr)))) {
         return false;
     }
     *data = (void *)(long)xdp->data;

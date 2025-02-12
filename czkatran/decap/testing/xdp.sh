@@ -40,7 +40,7 @@ g++ -g -Wall -o xdp \
     /home/cainiao/czkatran/czkatran/lib/Testing/Base64Helpers.cc\
     /home/cainiao/czkatran/czkatran/lib/MaglevBase.cc\
     /home/cainiao/czkatran/czkatran/decap/XdpDecap.cc\
-    /home/cainiao/czkatran/czkatran/lib/BpfLoader.cc\
+    /home/cainiao/czkatran/czkatran/lib/BpfLoader2.cc\
     /home/cainiao/czkatran/czkatran/lib/CHHelper.cc\
     /home/cainiao/czkatran/czkatran/lib/czkatranLb.cc\
     /home/cainiao/czkatran/czkatran/lib/MaglevHash.cc\

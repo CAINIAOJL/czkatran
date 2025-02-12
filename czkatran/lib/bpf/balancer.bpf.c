@@ -587,7 +587,7 @@ __always_inline static int perform_global_lru_lookup(
     __u32 global_lru_stats_key = MAX_VIPS + REMOTE_ENCAP_CNTRS;
 
     struct lb_stats* global_lru_stats_ = 
-        bpf_map_lookup_elem(&stats, global_lru_stats_key);
+        bpf_map_lookup_elem(&stats, &global_lru_stats_key);
     if(!global_lru_stats_) {
         return XDP_DROP;
     }

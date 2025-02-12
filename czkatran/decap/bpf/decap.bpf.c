@@ -11,7 +11,7 @@
 #include "/home/cainiao/czkatran/czkatran/lib/bpf/balancer_structs.h"
 #include "/home/cainiao/czkatran/czkatran/lib/bpf/packet_encap.h"
 #include "/home/cainiao/czkatran/czkatran/lib/bpf/packet_parse.h"
-
+#include "/home/cainiao/czkatran/czkatran/lib/bpf/control_data_maps.h"
 #include <bpf/bpf_helpers.h>
 
 //decap 解封装
@@ -128,8 +128,8 @@ __always_inline static int process_encaped_gue_packet(void ** data,
     }
     return FURTHER_PROCESSING;
 }
-#endif //INLINE_DECAP_GUE
-#ifdef INLINE_DECAP_GUE
+//#endif //INLINE_DECAP_GUE
+//#ifdef INLINE_DECAP_GUE
 __always_inline static void validate_tpr_server_id(void *data,
                                                    __u64 off, 
                                                    void *data_end, 
@@ -165,7 +165,7 @@ __always_inline static void validate_tpr_server_id(void *data,
         }
     }
 }
-#endif
+#endif //INLINE_DECAP_GUE
 
 
 

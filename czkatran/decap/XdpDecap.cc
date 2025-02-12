@@ -1,7 +1,7 @@
 #include <glog/logging.h>
 #include <cstdint>
-
-#include "/home/jianglei/czkatran/czkatran/decap/XdpDecap.h"
+#include <iostream>
+#include "XdpDecap.h"
 
 namespace czkatran {
 
@@ -53,6 +53,7 @@ void XdpDecap:: loadXdpDecap() {
         LOG(ERROR) << "XdpDecap program has already been loaded!";
         return;
     }
+    std::cout << "begin bpfAdapter_.loadBpfProg()" <<std::endl;
     auto res = bpfAdapter_.loadBpfProg(config_.progPath); //缺省参数 type, use_name 
     if(res) {
         LOG(FATAL) << "failed to load XDP program from " 
@@ -119,9 +120,10 @@ decap_stats XdpDecap:: getXdpDecapStats() {
         LOG(ERROR) << "failed to get number of possible cpus!";
         return stats;
     }
-
+    LOG(INFO) << "cpus is " <<nr_cpus;
     struct decap_stats percpu_stats[nr_cpus];
-    if(bpfAdapter_.bpfMapLookUpElement(bpfAdapter_.getMapFdByName("decap_counters"), &key, &percpu_stats)) {
+    LOG(INFO) << "The decap_counters fd is " << bpfAdapter_.getMapFdByName("decap_counters");
+    if(!bpfAdapter_.bpfMapLookUpElement(bpfAdapter_.getMapFdByName("decap_counters"), &key, &percpu_stats)) {
         for (auto &stat: percpu_stats) {
             stats.decap_v4 += stat.decap_v4;
             stats.decap_v6 += stat.decap_v6;

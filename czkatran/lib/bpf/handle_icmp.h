@@ -106,7 +106,7 @@ __always_inline static int send_icmp_reply(
 
 
 //~
-__always_inline static int parse_icmp(
+__attribute__((__always_inline__)) static inline int parse_icmp(
     void* data,
     void* data_end,
     __u64 nh_off,
@@ -142,18 +142,19 @@ __always_inline static int parse_icmp(
     //不清楚为什么要这么做
     nh_off += sizeof(struct icmphdr);
     ip_hdr = data + nh_off;
+
     if(ip_hdr + 1 > data_end) {
         return XDP_DROP;
     }
 
-    if(ip_hdr->ihl != 5) {
-        return XDP_DROP;
-    }
+    //if(ip_hdr->ihl != 5) {
+        //return XDP_DROP;
+    //}
 
-    pckt->flow.proto = ip_hdr->protocol;
-    pckt->flags |= F_ICMP;
-    pckt->flow.src = ip_hdr->daddr;
-    pckt->flow.dst = ip_hdr->saddr;
+    //pckt->flow.proto = ip_hdr->protocol;
+    //pckt->flags |= F_ICMP;
+    //pckt->flow.src = ip_hdr->daddr;
+    //pckt->flow.dst = ip_hdr->saddr;
     return FURTHER_PROCESSING;
 }
 

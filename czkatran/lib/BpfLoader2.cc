@@ -19,6 +19,7 @@
 
 #include <glog/logging.h>
 #include <array>
+#include <iostream>
 namespace czkatran {
 
 namespace {
@@ -121,6 +122,7 @@ int BpfLoader::loadBpfFile(
     const std::string& path,
     const bpf_prog_type type,
     bool use_names) {
+  std::cout << "in BpfLoader::loadBpfFile" << std::endl;
   auto obj = ::bpf_object__open(path.c_str());
   const auto err = ::libbpf_get_error(obj);
   if (err) {
@@ -128,6 +130,7 @@ int BpfLoader::loadBpfFile(
                << ", error: " << libBpfErrMsg(err);
     return kError;
   }
+  std::cout << "end of BpfLoader::loadBpfFile" <<std::endl;
   return loadBpfObject(obj, path, type);
 }
 
@@ -268,6 +271,7 @@ int BpfLoader::loadBpfObject(
     ::bpf_object* obj,
     const std::string& objName,
     const bpf_prog_type type) {
+  std::cout << "in BpfLoader::loadBpfObject" << std::endl;
   if (bpfObjects_.find(objName) != bpfObjects_.end()) {
     LOG(ERROR) << "collision while trying to load bpf object w/ name "
                << objName;
@@ -350,6 +354,7 @@ int BpfLoader::loadBpfObject(
   }
 
   bpfObjects_[objName] = obj;
+  std::cout << "end BpfLoader::loadBpfObject" << std::endl;
   return kSuccess;
 }
 
