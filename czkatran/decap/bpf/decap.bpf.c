@@ -10,8 +10,9 @@
 #include "/home/cainiao/czkatran/czkatran/lib/bpf/balancer_consts.h"
 #include "/home/cainiao/czkatran/czkatran/lib/bpf/balancer_structs.h"
 #include "/home/cainiao/czkatran/czkatran/lib/bpf/packet_encap.h"
-#include "/home/cainiao/czkatran/czkatran/lib/bpf/packet_parse.h"
+//#include "/home/cainiao/czkatran/czkatran/lib/bpf/packet_parse.h"
 #include "/home/cainiao/czkatran/czkatran/lib/bpf/control_data_maps.h"
+#include "/home/jianglei/czkatran/czkatran/lib/bpf/packet_parse.h"
 #include <bpf/bpf_helpers.h>
 
 //decap 解封装
@@ -128,9 +129,9 @@ __always_inline static int process_encaped_gue_packet(void ** data,
     }
     return FURTHER_PROCESSING;
 }
-//#endif //INLINE_DECAP_GUE
-//#ifdef INLINE_DECAP_GUE
-__always_inline static void validate_tpr_server_id(void *data,
+#endif //INLINE_DECAP_GUE
+
+__attribute__((__always_inline__)) static inline void validate_tpr_server_id(void *data,
                                                    __u64 off, 
                                                    void *data_end, 
                                                    bool is_ipv6, 
@@ -165,7 +166,7 @@ __always_inline static void validate_tpr_server_id(void *data,
         }
     }
 }
-#endif //INLINE_DECAP_GUE
+
 
 
 
@@ -217,7 +218,7 @@ __always_inline static int process_encap_ipip_packet(void **data,
                                                      bool *is_ipv6,
                                                      struct packet_description *packet,
                                                      __u8 *protocol,
-                                                     __u64 *packet_size,
+                                                     __u16 *packet_size,
                                                      __u64 off) {
     if (*protocol == IPPROTO_IPIP) {
         //ipip隧道设备
@@ -322,7 +323,7 @@ __always_inline static int process_packet(void *data,
             if(ret >= 0) {
                 return ret;
             }
-#endif
+#endif // DECAP_STRICT_DESTINATION
 
             if(is_ipv6) {
                 data_stats->decap_v6 += 1;
@@ -340,6 +341,7 @@ __always_inline static int process_packet(void *data,
         }
     }
 #endif //INLINE_DECAP_GUE
+    return XDP_PASS;
 }
 
 

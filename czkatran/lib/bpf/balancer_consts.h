@@ -118,7 +118,7 @@
 
 #define TCP_HDR_OPT_MAX_OPT_CHECKS 15
 
-#define TCP_OPT_EOF 0
+#define TCP_OPT_EOL 0
 
 #define TCP_OPT_NOP 1
 

@@ -256,61 +256,6 @@ process_encaped_ipip_pckt(
 }
 #endif //INLINE_DECAP_IPIP
 
-/*#ifdef INLINE_DECAP_GENERIC
-__always_inline static int check_decap_dst(
-    struct packet_description* pckt,
-    bool is_ipv6,
-    bool* pass)
-{
-    struct address* dst_addr = {};
-    struct lb_stats* data_stats;
-
-#ifdef DECAP_STRICT_DESTINATION
-    struct real_definition* host_primary_addrs;
-    __u32 addr_index;
-
-    if(is_ipv6) {
-        addr_index = V6_SRC_INDEX;
-        host_primary_addrs = bpf_map_lookup_elem(&packet_srcs, &addr_index);
-        if(host_primary_addrs) {
-            if(host_primary_addrs->dstv6[0] != pckt->flow.dstv6[0] ||
-               host_primary_addrs->dstv6[1] != pckt->flow.dstv6[1] || 
-               host_primary_addrs->dstv6[2] != pckt->flow.dstv6[2] || 
-               host_primary_addrs->dstv6[3] != pckt->flow.dstv6[3]) {
-                return XDP_PASS;
-            }
-        }
-    } else {
-        addr_index = V4_SRC_INDEX;
-        host_primary_addrs = bpf_map_lookup_elem(&packet_srcs, &addr_index);
-        if(host_primary_addrs) {
-            if(host_primary_addrs->dst != pckt->flow.dst) {
-                return XDP_PASS;
-            }
-        }
-    }
-#endif
-
-    if(is_ipv6) {
-        memcpy(dst_addr->addrv6, pckt->flow.dstv6, 16);
-    } else {
-        dst_addr->addr = pckt->flow.dst;
-    }
-
-    __u32* decap_dst_flags = bpf_map_lookup_elem(&decap_dst, &dst_addr);
-    if(decap_dst_flags) {
-        *pass = false;
-        __u32 stats_key = MAX_VIPS + REMOTE_ENCAP_CNTRS;
-        data_stats = bpf_map_lookup_elem(&stats, &stats_key);
-        if(!data_stats) {
-            return XDP_DROP;
-        }
-        data_stats->v1++;
-    }
-    return FURTHER_PROCESSING;
-}
-#endif */ // INLINE_DECAP_GENERIC
-
 //~
 #ifdef INLINE_DECAP_GUE
 

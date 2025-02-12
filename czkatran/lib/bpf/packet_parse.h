@@ -200,7 +200,7 @@ __always_inline int parse_hdr_opt_raw(const void *data,
     }
 
     kind = tcp_opt[0];
-    if(kind == TCP_OPT_EOF) {
+    if(kind == TCP_OPT_EOL) {
         return -1;
     }
 
@@ -221,7 +221,7 @@ __always_inline int parse_hdr_opt_raw(const void *data,
         return -1;
     }
 
-    if(kind == TCP_HDR_OPT_MAX_OPT_CHECKS) {
+    if(kind == TCP_HDR_OPT_KIND_TPR) {
         //再次检查
         if(hdr_len != TCP_HDR_OPT_LEN_TPR) {
             return -1;

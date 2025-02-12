@@ -45,13 +45,6 @@ struct {
 
 
 struct {
-    __uint(type, BPF_MAP_TYPE_ARRAY);
-    __uint(max_entries, MAX_QUIC_REALS);//真实服务器数量
-    __type(key, __u32);
-    __type(value, __u32);
-} server_id_map SEC(".maps");
-
-struct {
     __uint(type, BPF_MAP_TYPE_ARRAY_OF_MAPS);
     __uint(max_entries, MAX_SUPPORTED_CPUS);
     __type(key, __u32);
@@ -140,7 +133,6 @@ struct {
 
 
 #ifdef LPM_SRC_LOOKUP
-
 struct {
     //LPM路由
     __uint(type, BPF_MAP_TYPE_LPM_TRIE);
@@ -189,10 +181,10 @@ struct {
     __type(value, __u32);
 } server_id_map SEC(".maps");
 #else
-/*struct {
+struct {
     __uint(type, BPF_MAP_TYPE_ARRAY);
-    __uint(max_entries, MAX_QUIC_REALS);
+    __uint(max_entries, MAX_QUIC_REALS);//真实服务器数量
     __type(key, __u32);
     __type(value, __u32);
-} server_id_map SEC(".maps");*/
+} server_id_map SEC(".maps");
 #endif

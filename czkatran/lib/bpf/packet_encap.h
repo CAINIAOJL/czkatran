@@ -162,7 +162,7 @@ __always_inline static bool decap_v4(struct xdp_md *xdp,
     memcpy(eth_new->h_dest, eth_old->h_dest, 6);
     eth_new->h_proto = BE_ETH_P_IP;
 
-    if(XDP_ADJUST_HEAD_FUNC(xdp, sizeof(struct iphdr))) {
+    if(XDP_ADJUST_HEAD_FUNC(xdp, (int)sizeof(struct iphdr))) {
         return false;
     }
 
@@ -177,11 +177,11 @@ __always_inline static bool decap_v4(struct xdp_md *xdp,
 __always_inline static bool gue_decap_v4(struct xdp_md *xdp, void **data, void **data_end) {
     struct ethhdr *eth_new;
     struct ethhdr *eth_old;
-    eth_old = (struct ethhdr *)(*data);
-    eth_new = (struct ethhdr *)(*data + sizeof(struct iphdr) + sizeof(struct udphdr));
+    eth_old = *data;
+    eth_new = *data + sizeof(struct iphdr) + sizeof(struct udphdr);
     //RECORD_GUE_ROUTE(eth_old, eth_new, *data_end, true, true);//?
-    memcpy(eth_new->h_source, eth_old->h_source, sizeof(eth_new->h_source));
-    memcpy(eth_new->h_dest, eth_old->h_dest, sizeof(eth_new->h_dest));
+    memcpy(eth_new->h_source, eth_old->h_source, 6);
+    memcpy(eth_new->h_dest, eth_old->h_dest, 6);
     eth_new->h_proto = BE_ETH_P_IP;
     if(XDP_ADJUST_HEAD_FUNC(xdp, sizeof(struct iphdr) + sizeof(struct udphdr))) {
         return false;
@@ -196,11 +196,11 @@ __always_inline static bool gue_decap_v4(struct xdp_md *xdp, void **data, void *
 __always_inline static bool gue_decap_v6(struct xdp_md *xdp, void **data, void **data_end, bool inner_v4) {
     struct ethhdr *eth_new;
     struct ethhdr *eth_old;
-    eth_old = (struct ethhdr *)(*data);
-    eth_new = (struct ethhdr *)(*data + sizeof(struct ipv6hdr) + sizeof(struct udphdr));
+    eth_old = *data;
+    eth_new = *data + sizeof(struct ipv6hdr) + sizeof(struct udphdr);
     //RECORD_GUE_ROUTE(eth_old, eth_new, *data_end, true, false);//?
-    memcpy(eth_new->h_source, eth_old->h_source, sizeof(eth_new->h_source));
-    memcpy(eth_new->h_dest, eth_old->h_dest, sizeof(eth_new->h_dest));
+    memcpy(eth_new->h_source, eth_old->h_source, 6);
+    memcpy(eth_new->h_dest, eth_old->h_dest, 6);
     //eth_new->proto = inner_v4 ? BE_ETH_P_IP : BE_ETH_P_IPV6;
     if (inner_v4) {
         eth_new->h_proto = BE_ETH_P_IP;
