@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "BaseBpfAdapter.h"
-#include "BpfLoater.h"
+#include "BpfLoader2.h"
 
 
 extern "C" {
@@ -49,7 +49,7 @@ class BpfAdapter : public BaseBpfAdapter {
         int updateSharedMap(const std::string& name, int fd) override;
 
     private:
-        BpfLoader *bpf_loader_;
+        BpfLoader bpf_loader_;
 
 };
 }

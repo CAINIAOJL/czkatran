@@ -1,7 +1,7 @@
 #include <glog/logging.h>
 #include <cstdint>
 
-#include "/home/cainiao/czkatran/czkatran/decap/XdpDecap.h"
+#include "/home/jianglei/czkatran/czkatran/decap/XdpDecap.h"
 
 namespace czkatran {
 
@@ -11,7 +11,7 @@ XdpDecap:: XdpDecap(const XdpDecapConfig& config): config_(config) {
     if(!config_.mapPath.empty()) {
         isStandalone = false; 
     } else {
-        auto ifindex = bpfAdapter_.getInterfaceIndexByName(config.interface);
+        auto ifindex = bpfAdapter_.getInterfaceIndex(config.interface);
         if(!ifindex) {
             LOG(FATAL) << "can not resolve to infindex interface: "
                        << config_.interface;

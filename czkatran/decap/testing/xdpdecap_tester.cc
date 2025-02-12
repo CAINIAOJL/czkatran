@@ -4,15 +4,15 @@
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
-
-#include "/home/cainiao/czkatran/czkatran/decap/XdpDecap.h"
-#include "/home/cainiao/czkatran/czkatran/decap/testing/XdpDecapGueTestFixtures.h"
-#include "/home/cainiao/czkatran/czkatran/decap/testing/XdpDecapTestFixtures.h"
-#include "/home/cainiao/czkatran/czkatran/lib/Testing/BpfTester.h"
+#include <xdp/libxdp.h>
+#include "/home/jianglei/czkatran/czkatran/decap/XdpDecap.h"
+#include "XdpDecapGueTestFixtures.h"
+#include "XdpDecapTestFixtures.h"
+#include "/home/jianglei/czkatran/czkatran/lib/Testing/BpfTester.h"
 
 DEFINE_string(pcap_input, "", "path to input pcap file");
 DEFINE_string(pcap_output, "", "path to output pcap file");
-DEFINE_string(decap_prog, "/home/cainiao/czkatran/czkatran/decap/testing/decap_kern.o", "path to balancer bpf prog");
+DEFINE_string(decap_prog, "decap_kern.o", "path to balancer bpf prog");
 DEFINE_bool(print_base64, false, "print packet in base64 from pcap file");
 DEFINE_bool(test_from_fixtures, false, "run tests on predefined dataset");
 DEFINE_bool(gue, false, "run GUE tests instead of IPIP ones");
@@ -47,6 +47,7 @@ void testxdpDecapCounters(czkatran::XdpDecap& decap) {
                    << " expected:" << expectedMisroutedTPRPkts
                    << " tpr_total pkts:" << stats.tpr_total
                    << " expected:" << expectedTotalTPRPkts;
+        LOG(ERROR) << "[FATL] Incorrect decap counters";
         return;
     }   
 
@@ -76,7 +77,7 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
-    czkatran::XdpDecap decap(czkatran::XdpDecapConfig{FLAGS_decap_prog});
+    czkatran::XdpDecap decap(czkatran::XdpDecapConfig{.progPath = FLAGS_decap_prog});
     decap.loadXdpDecap();
     auto decap_prog_fd = decap.getXdpDecapFd();
     tester.setBpfProgFd(decap_prog_fd);

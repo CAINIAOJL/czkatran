@@ -33,7 +33,7 @@ __always_inline static bool encap_v6(
     __u8 proto;
 
     //向前扩张sizeof(struct ipv6hdr)大小
-    if(XDP_ADJUST_HEAD_FUNC(ctx, 0 - (int)sizeof(struct  ipv6hdr))) {
+    if(XDP_ADJUST_HEAD_FUNC(ctx, 0 - (int)sizeof(struct ipv6hdr))) {
         return false;
     }
     data = (void*)(long)ctx->data;
@@ -89,9 +89,9 @@ __always_inline static bool encap_v4(
 
     data = (void*)(long)ctx->data;
     data_end = (void*)(long)ctx->data_end;
-    new_eth = (struct ethhdr*)data;
-    old_eth = (struct ethhdr*)(data + sizeof(struct iphdr));
-    ip_hdr = (struct iphdr*)(data + sizeof(struct ethhdr));
+    new_eth = data;
+    old_eth = data + sizeof(struct iphdr);
+    ip_hdr = data + sizeof(struct ethhdr);
     
     if(new_eth + 1 > data_end || old_eth + 1 > data_end || ip_hdr + 1 > data_end) {
         return false;
@@ -202,7 +202,7 @@ __always_inline static bool gue_decap_v6(struct xdp_md *xdp, void **data, void *
     memcpy(eth_new->h_source, eth_old->h_source, sizeof(eth_new->h_source));
     memcpy(eth_new->h_dest, eth_old->h_dest, sizeof(eth_new->h_dest));
     eth_new->proto = inner_v4 ? BE_ETH_P_IP : BE_ETH_P_IPV6;
-    if(XDP_ADJUST_HEAD_FUNC(xdp, sizeof(struct ipv6hdr) + sizeof(udphdr))) {
+    if(XDP_ADJUST_HEAD_FUNC(xdp, (int)(sizeof(struct ipv6hdr) + sizeof(udphdr)))) {
         return false;
     }
     *data = (void *)(long)xdp->data;

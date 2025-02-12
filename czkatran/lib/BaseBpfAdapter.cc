@@ -136,16 +136,16 @@ int BaseBpfAdapter:: textXdpProg(
 BaseBpfAdapter:: BaseBpfAdapter(bool set_limits, 
                                 bool enableBatchOpsIfSupported) {
     libbpf_set_print(libbpf_print);
-    /*if(set_limits) {
+    if(set_limits) {
         //参考EBpf中的一些项目，这里提升系统的资源限制
         struct rlimit rlim = {};
         rlim.rlim_cur = RLIM_INFINITY;
         rlim.rlim_max = RLIM_INFINITY;
-        if (setrlimit(RLIMIT_MEMLOCK, &rlim) != -1) {
+        if (setrlimit(RLIMIT_MEMLOCK, &rlim)) {
             LOG(ERROR) << "Failed to set rlimit for memlock";
             throw std::runtime_error("error while setting rlimit for locked memory");
         }
-    }*/
+    }
 }
 
 BaseBpfAdapter::~BaseBpfAdapter() {
@@ -169,7 +169,7 @@ int BaseBpfAdapter:: getInterfaceIndexByName(const std::string& interface_name) 
     int ifindex = if_nametoindex(interface_name.c_str());
     if(!ifindex) {
         VLOG(1) << " can not get ifindex for interface: " << interface_name;
-        return 1;
+        return 0;
     }
     return ifindex;
 }
@@ -233,8 +233,8 @@ int BaseBpfAdapter:: getPossibleCpus() {
     return libbpf_num_possible_cpus(); // returns the number of possible CPUs on the system
 }
 
-int BaseBpfAdapter:: bpfMapLookUpElement(int map_fd, void* key, void *value) {
-    auto bpferror = bpf_map_lookup_elem(map_fd, key, value);
+int BaseBpfAdapter:: bpfMapLookUpElement(int map_fd, void* key, void *value, unsigned long long flags) {
+    auto bpferror = bpf_map_lookup_elem_flags(map_fd, key, value, flags);
     if(bpferror) {
         VLOG(4) << " bpf_map_lookup_elem failed with error: " << folly::errnoStr(errno);
     }

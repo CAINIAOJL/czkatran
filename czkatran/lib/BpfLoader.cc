@@ -118,7 +118,7 @@ const char* BpfLoader:: getProgNameByFromBpfProg(const struct bpf_program *prog)
 int BpfLoader:: loadBpfFile(const std::string& path, 
                            const bpf_prog_type type, 
                            bool use_names) {
-    auto obj = ::bpf_object__open_file(path.c_str(), NULL);
+    auto obj = ::bpf_object__open(path.c_str());
     const auto err = ::libbpf_get_error(obj);
     if(err) {
         LOG(ERROR) << "Failed to open BPF object file: " << path <<
@@ -131,7 +131,7 @@ int BpfLoader:: loadBpfFile(const std::string& path,
 
 int BpfLoader:: reloadBpfFromFile(const std::string& path, 
                                const bpf_prog_type type) {
-    auto obj = ::bpf_object__open_file(path.c_str(), NULL);
+    auto obj = ::bpf_object__open(path.c_str());
     const auto err = ::libbpf_get_error(obj);
     if(err) {
         LOG(ERROR) << "Failed to open BPF object file: " << path <<

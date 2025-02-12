@@ -188,7 +188,8 @@ class BaseBpfAdapter {
         static int bpfMapLookUpElement(
             int map_fd, 
             void* key, 
-            void *value);
+            void *value,
+            unsigned long long flags = 0);
 
         /**
          * @brief 修改xdp程序，通过interface（ifname）

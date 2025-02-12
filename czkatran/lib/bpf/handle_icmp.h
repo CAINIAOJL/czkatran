@@ -77,7 +77,7 @@ __always_inline static int send_icmp_reply(
     __u64 csum = 0;//校验和
     __u32 tmp_addr = 0;    
 
-    if(data + sizeof(struct ethhdr) + sizeof(struct iphdr) + sizeof(struct icmphdr) > data_end) {
+    if((data + sizeof(struct ethhdr) + sizeof(struct iphdr) + sizeof(struct icmphdr)) > data_end) {
         return XDP_DROP;
     }
 
@@ -141,7 +141,7 @@ __always_inline static int parse_icmp(
 
     //不清楚为什么要这么做
     nh_off += sizeof(struct icmphdr);
-    ip_hdr = (struct iphdr*)(data + nh_off);
+    ip_hdr = data + nh_off;
     if(ip_hdr + 1 > data_end) {
         return XDP_DROP;
     }
@@ -167,14 +167,14 @@ __always_inline static int send_icmp6_reply(
     struct icmp6hdr* icmp6_hdr;
     __be32 tmp_addr[4];//128位
     __u64 off = 0;
-    if(data + sizeof(struct ethhdr) + sizeof(struct ipv6hdr) + sizeof(struct icmp6hdr) > data_end) {
+    if((data + sizeof(struct ethhdr) + sizeof(struct ipv6hdr) + sizeof(struct icmp6hdr)) > data_end) {
         return XDP_DROP;
     }
 
     off += sizeof(struct ethhdr);
-    ip6_hdr = (struct ipv6hdr*)(data + off);
+    ip6_hdr = data + off;
     off += sizeof(struct ipv6hdr);
-    icmp6_hdr = (struct icmp6hdr*)(data + off);
+    icmp6_hdr = data + off;
     icmp6_hdr->icmp6_type = ICMPV6_ECHO_REPLY;
     /*
     ICMP Echo 和 Reply HDR 之间的唯一区别是类型;
@@ -342,7 +342,7 @@ __always_inline static int parse_icmpv6(
 {
     struct icmp6hdr* icmp6_hdr;
     struct ipv6hdr* ip6_hdr;
-    icmp6_hdr = (struct icmp6hdr*)(data + nh_off);
+    icmp6_hdr = data + nh_off;
     if(icmp6_hdr + 1 > data_end) {
         return XDP_DROP;
     }
@@ -350,8 +350,8 @@ __always_inline static int parse_icmpv6(
         return send_icmp6_reply(data, data_end);//发送回应
     }
 
-    if(icmp6_hdr->icmp6_type != ICMPV6_PKT_TOOBIG &&
-        icmp6_hdr->icmp6_type != ICMPV6_DEST_UNREACH) {
+    if((icmp6_hdr->icmp6_type != ICMPV6_PKT_TOOBIG )&&
+        (icmp6_hdr->icmp6_type != ICMPV6_DEST_UNREACH)) {
             return XDP_PASS;//内核栈处理
         }
 
@@ -369,7 +369,7 @@ __always_inline static int parse_icmpv6(
     }
 
     nh_off += sizeof(struct icmp6hdr);
-    ip6_hdr = (struct ipv6hdr*)(data + nh_off);
+    ip6_hdr = data + nh_off;
     if(ip6_hdr + 1 > data_end) {
         return XDP_DROP;
     }

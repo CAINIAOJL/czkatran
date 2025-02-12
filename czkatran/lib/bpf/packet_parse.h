@@ -138,7 +138,7 @@ __always_inline static bool parse_udp(void *data,
     bool is_icmp = !((packet->flags & F_ICMP) == 0); //是否是icmp报文
     __u64 off = calc_offset(is_ipv6, is_icmp); 
     struct udphdr* udp;
-    udp = (struct udphdr*)data + off;
+    udp = data + off;
     if(udp + 1 > data_end) {
         return false;
     }
@@ -162,7 +162,7 @@ __always_inline static bool parse_tcp(void *data,
     bool is_icmp = !((packet->flags & F_ICMP) == 0); //是否是icmp报文
     __u64 off = calc_offset(is_ipv6, is_icmp);
     struct tcphdr *tcp;
-    tcp = (struct tcphdr *)(data + off);
+    tcp = data + off;
     if(tcp + 1 > data_end) {
         return false;
     }

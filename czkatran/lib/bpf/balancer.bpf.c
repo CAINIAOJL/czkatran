@@ -135,7 +135,7 @@ __always_inline static int check_decap_dst(
     struct address dst_address = {};
     struct lb_stats* data_stats;
 
-#ifdef DECAP_STRICT_DESTINATION //decap_strict_destination
+#ifdef DECAP_STRICT_DESTINATION 
     struct real_definition* host_primary_addrss;
     __u32 addr_index;
 
@@ -472,7 +472,7 @@ __always_inline static int check_and_update_real_index_in_lru(
     }
     struct real_pos_lru new_dst_lru = {};
     new_dst_lru.pos = pckt->real_index;
-    bpf_map_update_elem(&lru_map, &pckt->flow, &new_dst_lru, BPF_ANY);
+    bpf_map_update_elem(lru_map, &pckt->flow, &new_dst_lru, BPF_ANY);
     return DST_NOT_FOUND_IN_LRU;
 }
 
@@ -1071,8 +1071,8 @@ process_packet(
                 if(tcp_hdr_opt_lookup(ctx, is_ipv6, &dst, &pckt) == FURTHER_PROCESSING) {
                     tpr_packets_stats_->ch_routed++;
                 } else {
-                    if(lru_map && (vip_info->flags & F_LRU_BYPASS)) {
-                        int res = check_and_update_real_index_in_lru(&pckt, lru_map);
+                    if(lru_map_ && (vip_info->flags & F_LRU_BYPASS)) {
+                        int res = check_and_update_real_index_in_lru(&pckt, lru_map_);
                         if(res == DST_MISMATCH_IN_LRU) {
                             tpr_packets_stats_->dst_mismatch_in_lru++;
                             incr_server_id_routing_stats(vip_num, false, true);
