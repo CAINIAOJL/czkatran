@@ -162,7 +162,7 @@ bool BpfTester::runBpfTesterFromFixture(int prog_fd,
         auto pckt_buff = folly::IOBuf::create(kMaxXdpPktSize);
         ///////////////////////////////////////////////////
         auto input_pckt = parser_.getPacketFromBase64(config_.testData[i].inputPacket);
-
+        writePcapOutput(input_pckt->cloneOne());
         if(config_.testData[i].routeThroughGlobalLru) {
             packetRoutedThroughGloballrubefore = getGloballruRoutedPackets();
         }
@@ -250,7 +250,7 @@ bool BpfTester::runBpfTesterFromFixture(int prog_fd,
 void BpfTester:: testPerfFromFixture(uint32_t repeat, const int position) {
     int first_index {0}, last_index {0};
     uint32_t duration {0}; //时间间隔
-    uint64_t pckt_num {0};
+    uint64_t pckt_num {1};
     std::string ret_val_str;
     std::string test_result;
     //2025-1-9-21:50

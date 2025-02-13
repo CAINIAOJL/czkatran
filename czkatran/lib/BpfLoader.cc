@@ -49,7 +49,7 @@ int BpfLoader:: closeBpfObject(::bpf_object *obj) {
         return KERROR;
     }
     ::bpf_object__close(obj);
-    return KSUCCESS;
+    return KERROR;
 }
 
 int BpfLoader:: getMapFdByName(const std::string& name) {
@@ -333,9 +333,9 @@ int BpfLoader:: reloadBpfObject(
             VLOG(4) << "adding new bpf map to map, name: " << map_name 
                     << " fd: " << ::bpf_map__fd(map);
             maps_Name_Fd_[map_name] = ::bpf_map__fd(map);
-            loaderMapNames.insert(map_name);
+            //loaderMapNames.insert(map_name);
         }
-        //loaderMapNames.insert(map_name);
+        loaderMapNames.insert(map_name);
     }
 
     for(auto &progName : loaderProgNames) {

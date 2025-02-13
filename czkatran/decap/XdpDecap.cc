@@ -30,7 +30,7 @@ XdpDecap:: ~XdpDecap() {
             return;
         }
         //defaultNoExit == true
-        if(!isStandalone) {
+        if(isStandalone) {
             auto res = bpfAdapter_.detachXdpProgram(config_.interface);
             if(res) {
                 LOG(ERROR) << "failed to detach this XDPDecap progtam";
