@@ -1157,7 +1157,6 @@ int balancer_ingress(struct xdp_md *ctx) {
     } else {
         return XDP_PASS; //交给内核栈处理
     }
-    return XDP_PASS;
 }
 
 char _license[] SEC("license") = "GPL";

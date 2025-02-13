@@ -12,7 +12,7 @@
 #include "/home/cainiao/czkatran/czkatran/lib/bpf/packet_encap.h"
 //#include "/home/cainiao/czkatran/czkatran/lib/bpf/packet_parse.h"
 #include "/home/cainiao/czkatran/czkatran/lib/bpf/control_data_maps.h"
-#include "/home/jianglei/czkatran/czkatran/lib/bpf/packet_parse.h"
+#include "/home/cainiao/czkatran/czkatran/lib/bpf/packet_parse.h"
 #include <bpf/bpf_helpers.h>
 
 //decap 解封装
@@ -295,14 +295,18 @@ __always_inline static int process_packet(void *data,
     //如果是隧道数据包，或者是ipv6协议的以太帧
     if (protocol == IPPROTO_IPIP || protocol == IPPROTO_IPV6) {
 #ifdef DECAP_STRICT_DESTINATION //decap_strict_destination
+        bpf_printk("in check_decap_dst(&packet, is_ipv6);");
         ret = check_decap_dst(&packet, is_ipv6);
         if(ret >= 0) {
             return ret;
         }
+        bpf_printk("end check_decap_dst(&packet, is_ipv6);");
 #endif
         if (is_ipv6) {
+            bpf_printk("data_stats->decap_v6 += 1;");
             data_stats->decap_v6 += 1;
         } else {
+            bpf_printk("data_stats->decap_v4 += 1;");
             data_stats->decap_v4 += 1;
         }
         data_stats->total += 1;
@@ -367,12 +371,15 @@ int xdpdecap(struct xdp_md *ctx) {
 
     if (eth_proto == BE_ETH_P_IP) {
         //处理IP数据包
+        bpf_printk("xdpdecap: eth_proto == BE_ETH_P_IP");
         return process_packet(data, nh_off, data_end, false, ctx);
     } else if (eth_proto == BE_ETH_P_IPV6) {
         //处理ipv6数据包
+        bpf_printk("xdpdecap: eth_proto == BE_ETH_P_IPV6");
         return process_packet(data, nh_off, data_end, true, ctx);
+    }else {
+        return XDP_PASS;
     }
-    return XDP_PASS;
 }
 
 char LICENSE[] SEC("license") = "GPL";

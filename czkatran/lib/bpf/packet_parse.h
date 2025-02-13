@@ -12,6 +12,8 @@
 #include "balancer_consts.h"
 #include "balancer_structs.h"
 
+#include "balancer_maps.h"
+
 //#include <bpf/bpf.h>
 //#include <bpf/bpf_helpers.h>
 
@@ -448,7 +450,7 @@ __always_inline static int tcp_hdr_opt_lookup(
         return FURTHER_PROCESSING;
     }
     pckt->real_index = key;
-    *dst = bpf_map_lookup_elem(&reals, key);
+    *dst = bpf_map_lookup_elem(&reals, &key);
     if(!(*dst)) {
         return FURTHER_PROCESSING;
     }
