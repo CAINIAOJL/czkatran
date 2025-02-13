@@ -319,7 +319,7 @@ __always_inline static int process_encaped_gue_pckt(
     struct xdp_md* ctx,
     __u64 nh_off,
     bool is_ipv6,
-    bool* pass
+    bool pass
 )
 {
     int offset = 0;
@@ -599,9 +599,9 @@ __always_inline static bool get_packet_dst(
 )
 {
     struct real_pos_lru new_dst = {};
-    bool under_flood;
-    bool src_found;
-    __u64 cur_time;
+    bool under_flood = false;
+    bool src_found = false;
+    __u64 cur_time = 0;
     __u32 key;
     __u32 hash;
     __u32* real_pos;
@@ -704,11 +704,11 @@ __always_inline static int update_vip_lru_miss_stats(
     }
 
     bool address_match = (is_ipv6 && 
-                            lru_miss_stat_vip->vipv6[0] == vip->vipv6[0] &&
+                            (lru_miss_stat_vip->vipv6[0] == vip->vipv6[0] &&
                             lru_miss_stat_vip->vipv6[1] == vip->vipv6[1] && 
                             lru_miss_stat_vip->vipv6[2] == vip->vipv6[2] && 
-                            lru_miss_stat_vip->vipv6[3] == vip->vipv6[3]
-                     || !is_ipv6 && lru_miss_stat_vip->vip == vip->vip);
+                            lru_miss_stat_vip->vipv6[3] == vip->vipv6[3])
+                     || (!is_ipv6 && lru_miss_stat_vip->vip == vip->vip));
     bool port_match = lru_miss_stat_vip->port == vip->port;
     bool proto_match = lru_miss_stat_vip->proto == vip->proto;
     bool vip_match = address_match && port_match && proto_match;

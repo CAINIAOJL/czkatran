@@ -106,13 +106,12 @@ struct {
 } tpr_stats_map SEC(".maps");
 
 #ifdef GLOBAL_LRU_LOOKUP
-
 struct {
     __uint(type, BPF_MAP_TYPE_ARRAY_OF_MAPS);
     __uint(max_entries, MAX_SUPPORTED_CPUS);
     __type(key, __u32);
     __type(value, __u32);
-    __array(value,
+    __array(values,
         struct {
             __uint(type, BPF_MAP_TYPE_LRU_PERCPU_HASH);
             __uint(max_entries, DEFAULT_LRU_SIZE);

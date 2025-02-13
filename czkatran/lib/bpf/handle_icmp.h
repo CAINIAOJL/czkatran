@@ -147,14 +147,14 @@ __attribute__((__always_inline__)) static inline int parse_icmp(
         return XDP_DROP;
     }
 
-    //if(ip_hdr->ihl != 5) {
-        //return XDP_DROP;
-    //}
+    if(ip_hdr->ihl != 5) {
+        return XDP_DROP;
+    }
 
-    //pckt->flow.proto = ip_hdr->protocol;
-    //pckt->flags |= F_ICMP;
-    //pckt->flow.src = ip_hdr->daddr;
-    //pckt->flow.dst = ip_hdr->saddr;
+    pckt->flow.proto = ip_hdr->protocol;
+    pckt->flags |= F_ICMP;
+    pckt->flow.src = ip_hdr->daddr;
+    pckt->flow.dst = ip_hdr->saddr;
     return FURTHER_PROCESSING;
 }
 
@@ -393,12 +393,12 @@ __always_inline static bool ignorable_quic_icmp_code(
 {
     __u64 off = sizeof(struct ethhdr);
     if(is_ipv6) {
-        struct icmp6hdr* icmp6_hdr = (struct icmp6hdr*)(data + off + sizeof(struct ipv6hdr));
+        struct icmp6hdr* icmp6_hdr = data + off + sizeof(struct ipv6hdr);
     
         return (icmp6_hdr->icmp6_code == ICMPV6_ADDR_UNREACH) ||
                 (icmp6_hdr->icmp6_code == ICMPV6_PORT_UNREACH);
     } else {
-        struct icmphdr* icmp_hdr = (struct icmphdr*)(data + off + sizeof(struct iphdr));
+        struct icmphdr* icmp_hdr = data + off + sizeof(struct iphdr);
     
         return (icmp_hdr->code == ICMP_PORT_UNREACH) ||
                 (icmp_hdr->code == ICMP_HOST_UNREACH);
