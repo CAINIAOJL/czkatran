@@ -33,7 +33,7 @@ std::vector<RealPos> Vip::calculateHashRing(std::vector<Endpoint> endpoints) {
         for(int i = 0; i < ringsize_; i++) {
             if(new_ch_ring[i] != chRing_[i]) {
                 new_pos.pos = i;
-                new_pos.reals = new_ch_ring[i];
+                new_pos.real = new_ch_ring[i];
                 delta.push_back(new_pos);
                 chRing_[i] = new_ch_ring[i];
             }

@@ -9,7 +9,7 @@
 namespace czkatran {
 
 struct RealPos {
-    uint32_t reals;
+    uint32_t real;
     uint32_t pos;
 };
 

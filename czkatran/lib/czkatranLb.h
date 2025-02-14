@@ -4,11 +4,17 @@
 #include <cstdint>
 #include <deque>
 
+#include <folly/IPAddress.h>
+#include <folly/Range.h>
+#include <folly/container/F14Map.h>
+
+
 #include "BaseBpfAdapter.h"
 #include "czkatranLbStructs.h"
 #include "Balancer_structs.h"
 #include "BpfAdapter.h"
-#include <folly/Range.h>
+#include "Vip.h"
+#include "czKatanMonitor.h"
 
 namespace czkatran {
 
@@ -73,10 +79,61 @@ namespace {
 constexpr folly::StringPiece KBalancerProgName = "balancer_ingress";
 constexpr folly::StringPiece KHealthcheckerProgName = "healthcheck_encap";
 }
+//------------------------------------2025-2-14-------------------------------
+namespace czKatranLbMaps {
+constexpr auto ch_rings = "ch_rings";
+constexpr auto ctl_array = "ctl_array";
+constexpr auto decap_dst = "decap_dst";
+constexpr auto event_pipe = "event_pipe";
+constexpr auto fallback_cache = "fallback_cache";
+constexpr auto fallback_glru = "fallback_glru";
+constexpr auto flow_debug_lru = "flow_debug_lru";
+constexpr auto flow_debug_maps = "flow_debug_maps";
+constexpr auto global_lru = "global_lru";
+constexpr auto global_lru_maps = "global_lru_maps";
+constexpr auto hc_ctrl_map = "hc_ctrl_map";
+constexpr auto hc_key_map = "hc_key_map";
+constexpr auto hc_pckt_macs = "hc_pckt_macs";
+constexpr auto hc_pckt_srcs_map = "hc_pckt_srcs_map";
+constexpr auto hc_reals_map = "hc_reals_map";
+constexpr auto hc_stats_map = "hc_stats_map";
+constexpr auto katran_lru = "katran_lru";
+constexpr auto lpm_src_v4 = "lpm_src_v4";
+constexpr auto lru_mapping = "lru_mapping";
+constexpr auto lru_miss_stats = "lru_miss_stats";
+constexpr auto pckt_srcs = "pckt_srcs"; //packet_srcs !
+constexpr auto per_hckey_stats = "per_hckey_stats";
+constexpr auto reals = "reals";
+constexpr auto server_id_map = "server_id_map";
+constexpr auto stats = "stats";
+constexpr auto vip_map = "vip_map";
+constexpr auto vip_miss_stats = "vip_miss_stats";
+} // namespace KatranLbMaps
 
+namespace {
+
+enum class czkatranMonitorState {
+   DISABLED,
+   ENABLED,
+};
+
+constexpr folly::StringPiece kBalancerProgName = "balancer_ingress";
+constexpr folly::StringPiece kHealthcheckerProgName = "healthcheck_encap";
+
+}
+//------------------------------------2025-2-14-------------------------------
 class czKatranLb {
-
     public:
+//------------------------------------2025-2-14-------------------------------
+        class RealsIdCallback {
+            public:
+                virtual ~RealsIdCallback() {}
+
+                virtual void onRealAdded(const folly::IPAddress& real, uint32_t id) = 0;
+
+                virtual void onRealDeleted(const folly::IPAddress& real, uint32_t id) = 0;
+        };
+//------------------------------------2025-2-14-------------------------------
         czKatranLb() = delete;
 
         explicit czKatranLb(const czKatranConfig& config,
@@ -84,15 +141,6 @@ class czKatranLb {
         
 
         ~czKatranLb(); 
-
-
-        /**
-         * @brief 统计数据核心函数
-         * @brief position: 映射的位置
-         * @brief map: 映射map的名称，默认为 "stats"
-         * @return lb_stats 统计数据
-         */
-        lb_stats getLbStats(uint32_t position, const std::string& map = "stats");
 
 
         /**
@@ -107,23 +155,159 @@ class czKatranLb {
         int getHealthcheckerprogFd() {
                 return bpfAdapter_->getProgFdByName(KHealthcheckerProgName.toString());
         }
+//------------------------------------2025-2-14-------------------------------
+        /**
+         * @brief 增加一个新的真实服务器
+         * @param real 真实服务器
+         * @param vipNum vip 的编号
+         */
+        bool addRealForVip(
+                const NewReal& real, 
+                const VipKey& vip);
+        
+        /**
+         * @brief 删除一个新的真实服务器
+         * @param real 真实服务器
+         * @param vipNum vip 的编号
+         */
+        bool deleteRealForVip(
+                const NewReal& real, 
+                const VipKey& vip);
+        
+        /**
+         * @brief 修改真实服务器操作
+         * @param action 操作类型
+         * @param reals 真实服务器列表
+         * @param vipNum vip 的编号
+         */
+        bool modifyRealsForVip(
+                const ModifyAction action, 
+                const std::vector<NewReal>& reals, 
+                const VipKey& vip);
+        
+        /**
+         * @brief 修改 quic 真实服务器操作
+         * @param action 操作类型
+         * @param reals quci 真实服务器列表
+         */
+        void modifyQuicRealsMapping(
+                const ModifyAction action,
+                const std::vector<QuicReal>& reals);
+        
+        /**
+         * @brief 重启czkatran监控者
+         * @param limit 限制
+         */
+        bool restartczKatranMonitor(
+                uint32_t limit,
+                std::optional<PcapStorageFormat> storage = std::nullopt);
+        
+        /**
+         * @brief 添加vip
+         * @param VipKey vip相关信息
+         * @param flags 标志
+         */
+        bool addVip(const VipKey& vip, const uint32_t flags = 0);
 
-
-
-
+        
+//--------------------------------------private---------------------------------
     private:
+        //更新bpf-map
+        bool updateRealsMap(
+                const folly::IPAddress& real, 
+                uint32_t num, 
+                uint8_t flags = 0);
+        
+        /**
+         * @brief 统计数据核心函数
+         * @param position: 映射的位置
+         * @param map: 映射map的名称，默认为 "stats"
+         * @return lb_stats 统计数据
+         */
+        lb_stats getLbStats(uint32_t position, const std::string& map = "stats");
+
+        
+        //减少实际引用计数器
+        void decreaseRefCountForReal(const folly::IPAddress& real);
+
+        //增加实际引用计数器
+        uint32_t increaseRefCountForReal(
+                const folly::IPAddress& real,
+                uint8_t flags = 0);
+        
+        /**
+         * @brief 验证地址是否合法
+         * @param address 地址
+         * @param allowNetAddr 暂且不知
+         */
+        AddressType validateAddress(
+                const std::string& address,
+                bool allowNetAddr = false
+        );
+
+        /**
+         * @brief 更新bpf-map（ch_ring）
+         * @param chPositions ch_ring positions
+         * @param VipNum vip 的编号
+         */
+        void programHashRing(
+                const std::vector<RealPos>& chPositions,
+                const uint32_t VipNum);
+        
+        /**
+         * @brief 更改czkatran监控者转发平面的状态
+         * @param state 状态
+         */
+        bool changeKatranMonitorForwardingState(czkatranMonitorState state);
+        
+        /**
+         * @brief 更新vip map
+         * @param action 操作类型
+         * @param vip vip信息
+         * @param meta vip meta信息
+         */
+        bool updateVipMap(
+                const ModifyAction action,
+                const VipKey& vip,
+                vip_meta* meta = nullptr);
+
+        /**
+         * @brief 构造vip_definition
+         * @param vip vip信息
+         * @return vip_definition
+         */
+        vip_definition vipKeyToVipDefinition(const VipKey& vipKey);
+//------------------------------------2025-2-14-------------------------------
+
         // 配置信息
         czKatranConfig config_;
-
+//----------------------------------ptr--------------------------------
         /**
          * BPF 适配器到程序转发平面
          */
         std::unique_ptr<BaseBpfAdapter> bpfAdapter_;
+        
+        /**
+         * 监控程序
+         */
+        std::shared_ptr<czkatranMonitor> monitor_ {nullptr};
 
+//----------------------------------other-----------------------------------
         /**
          * 存储czkatranLb 中的数据
          */
         czKatranLbStats lbStats_;
+
+        // 特征结构体
+        struct czkatranFeatrues features_;
+
+        //ip地址------------------>RealMeta
+        folly::F14FastMap<folly::IPAddress, RealMeta> reals_;
+
+        //num(序号)----------------> ip地址
+        folly::F14FastMap<uint32_t, folly::IPAddress> numToReals_;
+
+        RealsIdCallback* realsIdCallback_ {nullptr};
 //----------------------------------deque--------------------------------
         /**
          * * VIP、Reals 和 HCkeys 的未使用位置的向量。对于每个元素我们将从 vector 中弹出 position 的 num。对于已删除的 -将其推回（以便将来可以重复使用）
@@ -132,11 +316,11 @@ class czKatranLb {
         std::deque<uint32_t> realNums_;
         std::deque<uint32_t> hcKeysNums_;
 
+//----------------------------------bool/int---------------------------------
         /**
          * 若果是持久化模式下，会有一个root map
          */
         int rootMapFd_;
-//----------------------------------bool---------------------------------
         /**
          * 是不是持久化模式
          */
@@ -176,6 +360,11 @@ class czKatranLb {
          */
         std::vector<int> globalLruMapsFd;
 
+//----------------------------------unorder_map-------------------------------
+        //VipKey----------------->vip
+        std::unordered_map<VipKey, Vip, VipKeyHasher> vips_;
+        
+        std::unordered_map<uint32_t, folly::IPAddress> quciMapping_;   
 };
 
 

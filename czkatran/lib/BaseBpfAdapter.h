@@ -258,7 +258,27 @@ class BaseBpfAdapter {
             const int direction = TC_INGRESS,
             const uint32_t handle = 0
         );
+//------------------------------------2025-2-14-------------------------------
+        /**
+         * @brief 多次更新bpf-map
+         * @param map_fd bpf-map的fd
+         * @param keys bpf-map的key
+         * @param values bpf-map的value
+         * @param count 更新的次数
+         * @return 0 in success or other in failure
+         */
+        int bpfUpdateMapBatch(int map_fd, void* keys, void* values, uint32_t count);
 
+        /**
+         * @brief 得到bpf-map的信息
+         * @param fd bpf-map的fd
+         * @param info bpf-map的信息   
+         * @return 0 in success or other in failure
+         */
+        static int getBpfMapInfo(int fd, struct bpf_map_info* info);
+
+//------------------------------------2025-2-14-------------------------------
+    protected:
         /**
          * @brief 修改tc中的bpf filter
          * @param int cmd ---命令，RTM_NEWTFILTER或RTM_DELTFILTER
@@ -282,6 +302,7 @@ class BaseBpfAdapter {
             const uint32_t handle = 0
         );
 
+        bool batchOpsEnabled_{false};
 };
 
 }

@@ -271,5 +271,58 @@ int BaseBpfAdapter:: modifyTcBpfFilter(
     return NetlinkRoudtrip(msg);
 }
 
+//------------------------------------2025-2-14-------------------------------
+int BaseBpfAdapter:: getBpfMapInfo(int fd, struct bpf_map_info* info)//--------------------------√
+{
+    uint32_t info_size = sizeof(struct bpf_map_info);
+    memset(info, 0, info_size);
+    return bpf_obj_get_info_by_fd(fd, info, &info_size);
+}
+
+int BaseBpfAdapter:: bpfUpdateMapBatch(//--------------------------√
+    int map_fd, 
+    void* keys, 
+    void* values, 
+    uint32_t count) 
+{
+    if(batchOpsEnabled_) {
+        uint32_t numUpdated = count;
+        DECLARE_LIBBPF_OPTS(
+            bpf_map_batch_opts, opts, .elem_flags = 0, .flags = 0,
+        );
+        if(auto bpferror = 
+            bpf_map_update_batch(map_fd, keys, values, &numUpdated, &opts)) {
+                LOG(ERROR) << "Falied to perform batch update, errno = " << errno;
+                return -1;
+        }
+        if(count != numUpdated) {
+            LOG(ERROR) << "Failed to perform batch update, count = " << count << ", numUpdated = " << numUpdated;
+            return -1;
+        }
+    } else {
+        struct bpf_map_info mapInfo;
+        auto err = getBpfMapInfo(map_fd, &mapInfo);
+
+        if(err) {
+            LOG(ERROR) << "Failed to get map info for map-fd " << map_fd 
+            << " err is " << folly::errnoStr(errno);
+            return -1;
+        }
+
+        for(uint32_t i = 0; i < count; i++) {
+            auto res = bpfUpdateMap(
+                map_fd,
+                (char*)keys + (i * mapInfo.key_size), //key_size: 单个key的大小
+                (char*)values + (i * mapInfo.value_size) //value_size: 单个value的大小
+            );
+            if(res != 0) {
+                LOG(ERROR) << "bpfUpdateMap (bpfUpdateMapBatch) failed, errno = " << folly::errnoStr(errno);
+                return -1;
+            }
+        }
+    }
+    return 0;
+}
+//------------------------------------2025-2-14-------------------------------
 
 }

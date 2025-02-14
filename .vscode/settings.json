@@ -109,7 +109,16 @@
     "balancer_helpers.h": "c",
     "healthchecking.consts.h": "c",
     "encap_helpers.h": "c",
-    "bpf_common.h": "c"
+    "bpf_common.h": "c",
+    "__bit_reference": "cpp",
+    "__hash_table": "cpp",
+    "__locale": "cpp",
+    "__node_handle": "cpp",
+    "__split_buffer": "cpp",
+    "__threading_support": "cpp",
+    "__verbose_abort": "cpp",
+    "locale": "cpp",
+    "print": "cpp"
   },
   "C_Cpp_Runner.msvcBatchPath": "",
   "C_Cpp_Runner.cCompilerPath": "gcc",

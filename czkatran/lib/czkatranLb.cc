@@ -3,12 +3,15 @@
 #include <vector>
 #include <cstdint>
 #include <stdexcept> //异常处理头文件
-
+#include <algorithm>
 
 #include <fmt/core.h>
 #include <folly/String.h>
+#include <folly/IPAddress.h>
 #include <glog/logging.h>
+
 #include "czkatranLbStructs.h"
+#include "IpHelpers.h"
 
 namespace czkatran {
 
@@ -202,7 +205,9 @@ lb_stats czKatranLb:: getGlobalLruStats() {
     return getLbStats(config_.maxVips + kGlobalLruOffset);
 }
 
-lb_stats czKatranLb:: getLbStats(uint32_t position, const std::string& map) {
+lb_stats czKatranLb:: getLbStats(
+        uint32_t position, 
+        const std::string& map) {
     unsigned int nr_cpus = BpfAdapter::getPossibleCpus();
     if(nr_cpus < 0) {
         LOG(ERROR) << "getLbStats error: can't get number of possible cpus";
@@ -228,5 +233,438 @@ lb_stats czKatranLb:: getLbStats(uint32_t position, const std::string& map) {
     }
     return sum_stats;
 }
+
+
+//------------------------------------2025-2-14-------------------------------
+AddressType czKatranLb:: validateAddress(//--------------------------√
+    const std::string& address,
+    bool allowNetAddr
+)
+{
+    if(!folly::IPAddress::validate(address)) {
+        if(allowNetAddr && (features_.srcRouting || config_.testing)) {
+            auto res = folly::IPAddress::tryCreateNetwork(address);
+            if(res.hasValue()) {
+                return AddressType::NETWORK; 
+            }
+        }
+        lbStats_.addrValidationFailed++;
+        LOG(ERROR) << "invalid address : " << address;
+        return AddressType::INVALID;
+    }
+    return AddressType::HOST;
+}
+
+bool czKatranLb:: addRealForVip(//--------------------------√
+    const NewReal& real, 
+    const VipKey& vip)
+{
+    std::vector<NewReal> reals;
+    reals.push_back(real);
+    return modifyRealsForVip(ModifyAction::ADD, reals, vip);
+}
+
+bool czKatranLb:: deleteRealForVip(//--------------------------√
+    const NewReal& real, 
+    const VipKey& vip)
+{
+    std::vector<NewReal> reals;
+    reals.push_back(real);
+    return modifyRealsForVip(ModifyAction::DEL, reals, vip);
+}
+
+void czKatranLb:: decreaseRefCountForReal(const folly::IPAddress& real)//--------------------------√
+{
+    auto real_iter = reals_.find(real);
+    if(real_iter == reals_.end()) {
+        return;
+    }
+    real_iter->second.refCount--;
+    if(real_iter->second.refCount == 0) {
+        auto num = real_iter->second.num;
+        //循环利用
+        realNums_.push_back(num); //放入队列
+        reals_.erase(real_iter); //删除
+        numToReals_.erase(num);
+
+        if(realsIdCallback_) {
+            realsIdCallback_->onRealDeleted(real, num);
+        }
+    }
+}
+
+bool czKatranLb::updateRealsMap(//--------------------------√
+    const folly::IPAddress& real,
+    uint32_t num,
+    uint8_t flags)
+{
+    auto real_addr = IpHelpers::parseAddrToBe(real);
+    flags &= ~V6DADDR;
+    real_addr.flags |= flags;
+    auto res = bpfAdapter_->bpfUpdateMap(
+        bpfAdapter_->getMapFdByName("reals"),
+        &num,
+        &real_addr
+    );
+    if(res != 0) {
+        LOG(INFO) << "can not add new reals, error" << folly::errnoStr(errno);
+        lbStats_.bpfFailedCalls++;
+        return false;
+    }
+    return true;
+
+}
+
+uint32_t czKatranLb:: increaseRefCountForReal(//--------------------------√
+    const folly::IPAddress& real,
+    uint8_t flags)
+{
+    auto real_iter = reals_.find(real);
+    flags &= ~V6DADDR;
+    if(real_iter != reals_.end()) {
+        real_iter->second.refCount++; //计数器加一
+        return real_iter->second.num; //返回序号
+    } else {
+        if(realNums_.size() == 0) {
+            return config_.maxReals;
+        }
+        RealMeta rmeta;
+        auto rnum = realNums_[0];
+        realNums_.pop_front();
+        numToReals_[rnum] = real;
+        rmeta.refCount = 1;
+        rmeta.num = rnum;
+        rmeta.flags = flags;
+        reals_[real] = rmeta;
+        if(!config_.testing) {//不是测试，更新bpf-map
+            updateRealsMap(real, rnum, flags);
+        }
+        if(realsIdCallback_) {
+            realsIdCallback_->onRealAdded(real, rnum);
+        }
+        return rnum;
+    }
+}
+
+
+bool czKatranLb:: modifyRealsForVip(//--------------------------√
+    const ModifyAction action, 
+    const std::vector<NewReal>& reals, 
+    const VipKey& vip
+)
+{
+    UpdateReal ureal;
+    std::vector<UpdateReal> ureals;
+    ureal.action = action;
+
+    auto vip_it = vips_.find(vip);
+    if(vip_it == vips_.end()) {
+        LOG(INFO) << fmt::format("can not find vip {}", vip.address);
+        return false;
+    }
+    auto cur_reals = vip_it->second.getReals();
+
+    for(const auto& real : reals) {
+        if(validateAddress(real.address) == AddressType::INVALID) {
+            LOG(ERROR) << "Invalid real's address " << real.address;
+            continue; 
+        }
+        folly::IPAddress raddr(real.address);
+        VLOG(4) << fmt::format(
+            "modifying real {} with weight {} for vip {} : {} : {}. action is {}",
+            real.address,
+            real.weight,
+            vip.address,
+            vip.port,
+            vip.proto,
+            action == ModifyAction::ADD ? "add" : "delete"
+        );
+
+        if(action == ModifyAction::DEL) {
+            //删除
+            auto real_iter = reals_.find(raddr);
+            if(real_iter == reals_.end()) {
+                LOG(INFO) << "can not find real to delete real (non-existing real)";
+                continue;
+            }
+            if(std::find(cur_reals.begin(), cur_reals.end(), real_iter->second.num) == cur_reals.end()) {
+                LOG(INFO) << fmt::format(
+                    "can not delete real (non-existing real) for the Vip: {}", vip.address
+                );
+                continue;
+            }
+            ureal.updateReal.num = real_iter->second.num;
+            decreaseRefCountForReal(raddr);
+        } else {
+            //增加
+            auto real_iter = reals_.find(raddr);
+            if(real_iter != reals_.end()) {
+                if(std::find(cur_reals.begin(), cur_reals.end(), real_iter->second.num) == cur_reals.end()) {
+                    //新的节点对于虚拟ip而言
+                    increaseRefCountForReal(raddr, real.flags);
+                    //复用问题，
+                    cur_reals.push_back(real_iter->second.num);
+                }
+                ureal.updateReal.num = real_iter->second.num;
+            } else {
+                auto rnum = increaseRefCountForReal(raddr, real.flags);
+                if(rnum == config_.maxReals) {
+                    LOG(INFO) << "exhausted real's space";
+                    continue;
+                }
+                ureal.updateReal.num = rnum;
+            }
+            ureal.updateReal.weight = real.weight;
+            ureal.updateReal.hash = raddr.hash();
+        }
+        ureals.push_back(ureal);
+    }
+
+    //更新xdp程序中的ch_ring map
+    auto ch_positions = vip_it->second.batchRealsupdate(ureals);
+    auto vip_num = vip_it->second.getVipNum(); //得到虚拟ip的序号
+    programHashRing(ch_positions, vip_num);
+    return true;
+}
+
+void czKatranLb:: programHashRing(//--------------------------√
+    const std::vector<RealPos>& chPositions,
+    const uint32_t VipNum)
+{
+    if(chPositions.size() == 0) {
+        return;
+    }
+
+    //不是测试
+    if(!config_.testing) {
+        uint32_t updateSize = chPositions.size();
+        uint32_t keys[updateSize];
+        uint32_t values[updateSize];
+
+        auto ch_fd = bpfAdapter_->getMapFdByName(czKatranLbMaps::ch_rings);
+        for(uint32_t i = 0; i < updateSize; i++) {
+            //bpf balancer.bpf.c: 对应
+            //key = RING_SIZE * (vip_info->vip_num) + hash;
+            keys[i] = VipNum * config_.chRingSize + chPositions[i].pos;
+            values[i] = chPositions[i].real;
+        }
+
+        auto res = bpfAdapter_->bpfUpdateMapBatch(ch_fd, keys, values, updateSize);
+        if(res != 0) {
+            lbStats_.bpfFailedCalls++;
+            LOG(INFO) << "can not update ch ring map, errno = " << folly::errnoStr(errno);
+        }
+    }   
+}
+
+void czKatranLb:: modifyQuicRealsMapping(//--------------------------√
+    const ModifyAction action,
+    const std::vector<QuicReal>& reals)
+{
+    std::unordered_map<uint32_t, uint32_t> to_update;
+    for(const auto& real : reals) {
+        if(validateAddress(real.address) == AddressType::INVALID) {
+            LOG(ERROR) << "Invalid quic real's address " << real.address;
+            continue; 
+        }
+        if(!config_.enableCidV3 && (real.id > kMaxQuicIdV2)) {
+            LOG(ERROR) << "(out of assigned space)Invalid quic real's id " << real.id;
+            continue;
+        }
+
+        VLOG(4) << fmt::format(
+            "modifying quic real {} with id 0x{:x}. action is {}",
+            real.address,
+            real.id,
+            action == ModifyAction::ADD ? "add" : "delete"
+        );
+        auto raddr = folly::IPAddress(real.address); //folly::IPAddress
+        auto real_iter = quciMapping_.find(real.id);
+        if(action == ModifyAction::DEL) {
+            //DEL
+            if(real_iter == quciMapping_.end()) {
+                LOG(ERROR) << fmt::format(
+                    "can not find quic real to delete real (non-existing real) for id 0x{:x} and IPAddress is {}",
+                    real.id,
+                    real.address
+                );
+                continue;
+            }
+            if(real_iter->second != raddr) {
+                LOG(ERROR) << fmt::format(
+                    "different IPAddress for the same id 0x{:x}, and IPAddress in mapping is {}, and given IPAddress is {}",
+                    real.id,
+                    real_iter->second.str(),
+                    real.address  
+                );
+                continue;
+            }
+            decreaseRefCountForReal(raddr); //计数器减一
+            quciMapping_.erase(real_iter);
+        } else {
+            //ADD
+            if(real_iter != quciMapping_.end()) {
+                if(real_iter->second == raddr) {
+                    continue;
+                }
+                LOG(WARNING) << fmt::format(
+                    "overriding IPAddress {} for existing mapping id {}, mapping IPAddress {}",
+                    real.address,
+                    real.id,
+                    real_iter->second.str()
+                );
+                decreaseRefCountForReal(real_iter->second);
+            }
+            auto rnum = increaseRefCountForReal(raddr);
+            if(rnum == config_.maxReals) {
+                LOG(ERROR) << "exhausted real's space";
+                continue;
+            }
+            to_update[real.id] = rnum;
+            quciMapping_[real.id] = raddr; //更新mapping
+        }
+    }
+    //不是在测试，要去更新bpf-map
+    if(!config_.testing) {
+        auto server_id_map_fd = 
+            bpfAdapter_->getMapFdByName(czKatranLbMaps::server_id_map);
+        uint32_t id, rnum;
+        int res;
+        for(auto& mapping : to_update) {
+            id = mapping.first;
+            rnum = mapping.second;
+            res = bpfAdapter_->bpfUpdateMap(server_id_map_fd, &id, &rnum);
+            if(res != 0) {
+                LOG(ERROR) << "can not update quci mapping, error : " << folly::errnoStr(errno);
+                lbStats_.bpfFailedCalls++;
+            }
+        }
+    }
+}
+
+bool czKatranLb:: changeKatranMonitorForwardingState(czkatranMonitorState state)//--------------------------√
+{
+    uint32_t key = kIntrospectionGkPos;
+    struct ctl_value value;
+    switch(state) {
+        case czkatranMonitorState::ENABLED:
+            value.value = 1;
+            break;
+        case czkatranMonitorState::DISABLED:
+            value.value = 0;
+            break;
+    }
+
+    auto res = bpfAdapter_->bpfUpdateMap(
+        bpfAdapter_->getMapFdByName(czKatranLbMaps::ctl_array),
+        &key,
+        &value
+    );
+    if(res != 0) {
+        LOG(INFO) << "can not change state of introspection forwarding plane";
+        lbStats_.bpfFailedCalls++;
+        return false;
+    }
+    return true;
+}
+
+bool czKatranLb:: restartczKatranMonitor(//--------------------------√
+    uint32_t limit,
+    std::optional<PcapStorageFormat> storage)
+{
+    if(!monitor_) {
+        return false;
+    }
+    if(!changeKatranMonitorForwardingState(czkatranMonitorState::ENABLED)) {
+        return false; //关闭监视者
+    }
+    monitor_->restartMonitor(limit, storage);
+    return true;
+}
+
+vip_definition czKatranLb:: vipKeyToVipDefinition(const VipKey& vipKey)//--------------------------√
+{
+    auto vip_addr = IpHelpers::parseAddrToBe(vipKey.address);
+    vip_definition vip_def = {};
+    if((vip_addr.flags & V6DADDR) > 0) {
+        //ipv6
+        std::memcpy(&vip_def.vipv6, &vip_addr.v6daddr, 16);
+    } else {
+        vip_def.vip = vip_addr.daddr;
+    }
+    vip_def.proto = vipKey.proto;
+    //vip_def.port = vipKey.port;
+    vip_def.port = folly::Endian::big(vipKey.port); //大端序
+    return vip_def;
+}
+
+bool czKatranLb:: updateVipMap(//--------------------------√
+    const ModifyAction action,
+    const VipKey& vip,
+    vip_meta* meta)
+{
+    struct vip_definition vip_def = vipKeyToVipDefinition(vip);
+    if(action == ModifyAction::ADD) {
+        //add
+        auto res = bpfAdapter_->bpfUpdateMap(
+            bpfAdapter_->getMapFdByName(czKatranLbMaps::vip_map),
+            &vip_def,
+            &meta
+        );
+        if(res != 0) {
+            LOG(INFO) << "can not add new element into vip_map, error: " << folly::errnoStr(errno);
+            lbStats_.bpfFailedCalls++;
+            return false;
+        }
+    } else {
+        //del
+        auto res = bpfAdapter_->bpfMapDeleteElement(
+            bpfAdapter_->getMapFdByName(czKatranLbMaps::vip_map),
+            &vip_def
+        );
+        if(res != 0) {
+            LOG(INFO) << "can not delete element from vip_map, error: " << folly::errnoStr(errno);
+            lbStats_.bpfFailedCalls++;
+            return false;
+        }
+    }
+    return true;
+}
+
+bool czKatranLb:: addVip(const VipKey& vip, const uint32_t flags = 0)//--------------------------√
+{
+    if(validateAddress(vip.address) == AddressType::INVALID) {
+        LOG(ERROR) << "Invalid vip's address " << vip.address;
+        return false;
+    }
+    LOG(INFO) << fmt::format(
+        "adding new vip: address {}: prot {}: proto{}",
+        vip.address,
+        vip.port,
+        vip.proto
+    );
+    //deque
+    if(vipNums_.size() == 0) {
+        LOG(INFO) << "exhausted vip's space";
+        return false;
+    }
+    if(vips_.find(vip) != vips_.end()) {
+        LOG(INFO) << "vip already exists";
+        return false;
+    }
+    auto vip_num = vipNums_[0]; //队列的前面
+    vipNums_.pop_front();
+    vips_.emplace(
+        vip, Vip(vip_num, flags, config_.chRingSize, config_.hashFunction)
+    );
+    if(!config_.testing) {
+        vip_meta meta;
+        meta.flags = flags;
+        meta.vip_num = vip_num;
+        updateVipMap(ModifyAction::ADD, vip, &meta);
+    }
+    return true;
+}
+//------------------------------------2025-2-14-------------------------------
 
 }

@@ -25,6 +25,23 @@ struct event_metadata {
     uint32_t data_len;
 }__attribute__((__packed__));
 
+//------------------------------------2025-2-14-------------------------------
+//--------------------------√
+struct vip_meta {
+    uint32_t flags;
+    uint32_t vip_num;
+};
+
+struct vip_definition {
+    union {
+        uint32_t vip;
+        uint32_t vipv6[4];
+    };
+    uint16_t port;
+    uint16_t proto;
+};
+//------------------------------------2025-2-14-------------------------------
+//--------------------------√
 
 
 

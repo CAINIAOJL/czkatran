@@ -226,6 +226,74 @@ struct czKatranLbStats {
   uint64_t addrValidationFailed {0};
 };
 
+//------------------------------------2025-2-14-------------------------------
+//--------------------------√
 
+//用于bitmap
+enum class czkatranFeatureEnum : uint8_t {
+  SrcRouting = 1 << 0,
+  InlineDecap = 1 << 1,
+  Introspection = 1 << 2,
+  GueEncap = 1 << 3,
+  DirectHealthchecking = 1 << 4,
+  LocalDeliveryOptimization = 1 << 5,
+  FlowDebug = 1 << 6,
+};
 
+class VipKey {
+  public:
+    std::string address; //ip地址
+    uint16_t port; //端口
+    uint8_t proto; //协议
+
+    bool operator==(const VipKey& other) const {
+      return (this->address == other.address && this->port == other.port && this->proto == other.proto);
+    }
+};
+
+struct VipKeyHasher {
+  std::size_t operator()(const VipKey& key) const {
+    return ((std::hash<std::string>()(key.address) ^ (std::hash<uint16_t>()(key.port) << 1)) >> 1) ^ (std::hash<uint8_t>()(key.proto) << 1);
+  }
+};
+
+struct NewReal {
+  std::string address;
+  uint32_t weight;
+  uint8_t flags;
+};
+
+enum class AddressType {
+  INVALID,
+  HOST,
+  NETWORK,
+};
+
+struct czkatranFeatrues {
+  bool srcRouting{false};
+  bool inlineDecap{false};
+  bool introspection{false};
+  bool gueEncap{false};
+  bool directHealthchecking{false};
+  bool localDeliveryOptimization{false};
+  bool flowDebug{false};
+};
+
+struct RealMeta {
+  uint32_t num; //序号
+  /*
+  * 一个真实的对象可以被多个 VIP 使用
+  * 我们将删除真实对象（回收它的编号），
+  * 仅当引用计数等于零时
+  */
+  uint32_t refCount; //复用计数器
+  uint8_t flags;
+};
+
+struct QuicReal {
+  std::string address; //ip
+  uint32_t id;  //id
+};
+//------------------------------------2025-2-14-------------------------------
+//--------------------------√
 }
