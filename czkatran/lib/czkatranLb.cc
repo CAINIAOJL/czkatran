@@ -667,4 +667,394 @@ bool czKatranLb:: addVip(const VipKey& vip, const uint32_t flags = 0)//---------
 }
 //------------------------------------2025-2-14-------------------------------
 
+//------------------------------------2025-2-15-------------------------------
+
+bool czKatranLb:: modifyVip(//--------------------------√
+    const VipKey& vip, 
+    uint32_t flag, 
+    bool set)
+{
+    LOG(INFO) << fmt::format(
+        "modifyVip vip : IPAddress {} port {} proto {}",
+        vip.address,
+        vip.port,
+        vip.proto
+    );
+
+    auto vip_iter = vips_.find(vip);
+    if(vip_iter == vips_.end()) {
+        LOG(INFO) << fmt::format(
+            "vip not found Vip : {}",
+            vip.address
+        );
+        return false;
+    }
+
+    if(set) {
+        vip_iter->second.setVipFlags(flag);
+    } else {
+        vip_iter->second.unsetVipFlags(flag);
+    }
+
+    if(!config_.testing) {
+        vip_meta meta;
+        meta.vip_num = vip_iter->second.getVipNum();
+        meta.flags = vip_iter->second.getVipFlags();
+        return updateVipMap(ModifyAction::ADD, vip, &meta);
+    }
+    return true;
+}
+
+bool czKatranLb:: addHealthcheckerDst(//--------------------------√
+    const uint32_t somark, 
+    const std::string& dst)
+{
+    if(!config_.enableHc) {
+        LOG(INFO) << "healthchecking is disabled ! ";
+        return false;
+    }
+    if(validateAddress(dst) == AddressType::INVALID) {
+        LOG(ERROR) << "Invalid healthchecker's address " << dst;
+        return false;
+    }
+    VLOG(4) << fmt::format(
+        "adding new healthchecker with somark {} and dst {} ",
+        somark,
+        dst
+    );
+
+    folly::IPAddress hcaddr (dst);
+    uint32_t key = somark;
+    beaddr addr;
+
+    auto hc_iter = hcReals_.find(somark);
+    if(hc_iter == hcReals_.end() && hcReals_.size() == config_.maxReals) {
+        LOG(INFO) << "healthchecker's space exhausted";
+        return false;
+    }
+
+    if(hcaddr.isV4() && !features_.directHealthchecking) {
+        addr = IpHelpers::parseAddrToint(hcaddr);
+    } else {
+        addr = IpHelpers::parseAddrToBe(hcaddr);
+    }
+
+    if(!config_.testing) {
+        auto res = bpfAdapter_->bpfUpdateMap(
+            bpfAdapter_->getMapFdByName(czKatranLbMaps::hc_reals_map),
+            &key,
+            &addr
+        );
+        if(res != 0) {
+            LOG(INFO) << "can not add new element into hc_reals_map, error: " << folly::errnoStr(errno);
+            lbStats_.bpfFailedCalls++;
+            return false;
+        }
+    }
+    hcReals_[somark] = hcaddr;
+    return true;
+}
+
+int czKatranLb:: addSrcRoutingRule(//--------------------------√
+    const std::vector<std::string>& srcs,
+    const std::string& dst)
+{
+    int num_errors = 0;
+    if(!features_.srcRouting && !config_.testing) {
+        LOG(ERROR) << "Source based routing is not enabled for xdp forwarding plane";
+        return kError;
+    }
+    if(validateAddress(dst) == AddressType::INVALID) {
+        LOG(ERROR) << fmt::format(
+            "Invalid dst address: {} for src routing rule",
+        dst);
+        return kError;
+    }
+
+    std::vector<folly::CIDRNetwork> src_networks;
+    for(auto& src : srcs) {
+        if(validateAddress(src, true) != AddressType::NETWORK) {
+            LOG(ERROR) << fmt::format(
+                "Invalid src address: {} for src routing rule",
+                src
+            );
+            num_errors++;
+            continue;
+        }
+        if(lpmSrcMapping_.size() + src_networks.size() + 1 > config_.maxLpmSrcSize) {
+            LOG(ERROR) << "Source based routing space exhausted";
+            num_errors += (srcs.size() - src_networks.size()); //剩下的
+            break;
+        }
+        src_networks.push_back(folly::IPAddress::createNetwork(src));
+    }
+    auto val = addSrcRoutingRule(src_networks, dst);
+    if(val == kError) {
+        num_errors = val;
+    }
+    return num_errors;
+}
+
+int czKatranLb:: addSrcRoutingRule(//--------------------------√
+    const std::vector<folly::CIDRNetwork>& srcs,
+    const std::string& dst)
+{
+    if(!features_.srcRouting && !config_.testing) {
+        LOG(ERROR) << "Source based routing is not enabled for xdp forwarding plane";
+        return kError;
+    }
+
+    if(validateAddress(dst) == AddressType::INVALID) {
+        LOG(ERROR) << fmt::format(
+            "Invalid dst address: {} for src routing rule",
+        dst);
+        return kError;
+    }
+
+    for(auto& src : srcs) {
+        if(lpmSrcMapping_.size() + 1 > config_.maxLpmSrcSize) {
+            LOG(ERROR) << "Source based routing space exhausted";
+            return kError;
+        }
+        auto rnum = increaseRefCountForReal(folly::IPAddress(dst));
+        if(rnum == config_.maxReals) {
+            LOG(ERROR) << "Source based routing space exhausted";
+            return kError;
+        }
+        lpmSrcMapping_[src] = rnum;
+        if(!config_.testing) {
+            modifyLpmSrcRule(ModifyAction::ADD, src, rnum);
+        }
+    }
+    return 0;
+}
+
+bool czKatranLb:: modifyLpmSrcRule(//--------------------------√
+    ModifyAction action,
+    const folly::CIDRNetwork& src,
+    uint32_t rnum)
+{
+    return modifyLpmMap("lpm_src", action, src, &rnum);
+}
+
+bool czKatranLb:: modifyLpmMap(//--------------------------√
+    const std::string& lpmMapNamePrefix,
+    ModifyAction action,
+    const folly::CIDRNetwork& addr,
+    void* value)
+{
+    auto lpm_addr = IpHelpers::parseAddrToBe(addr.first.str());
+    if(addr.first.isV4()) {
+        //ipv4
+        struct v4_lpm_key key = {
+            .prefixlen = addr.second,
+            .addr = lpm_addr.daddr
+        };
+        std::string mapName = lpmMapNamePrefix + "_v4"; //bpf-map name
+        if(action == ModifyAction::ADD) {
+            //add
+            auto res = bpfAdapter_->bpfUpdateMap(
+                bpfAdapter_->getMapFdByName(mapName),
+                &key,
+                value
+            );
+            if(res != 0) {
+                LOG(INFO) << " can not add new element into " << mapName << ", error is " << folly::errnoStr(errno);
+                lbStats_.bpfFailedCalls++;
+                return false;
+            }
+        } else {
+            auto res = bpfAdapter_->bpfMapDeleteElement(
+                bpfAdapter_->getMapFdByName(mapName),
+                &key
+            );
+            if(res != 0) {
+                LOG(INFO) << " can not delete element from " << mapName << ", error is " << folly::errnoStr(errno);
+                lbStats_.bpfFailedCalls++;
+                return false;
+            }
+        }
+    } else {
+        struct v6_lpm_key key = {
+            .prefixlen = addr.second
+        };
+        std::string mapName = lpmMapNamePrefix + "_v6";
+        std::memcpy(&key.addr, &lpm_addr.v6daddr, 16);
+        if(action == ModifyAction::ADD) {
+            //add
+            auto res = bpfAdapter_->bpfUpdateMap(
+                bpfAdapter_->getMapFdByName(mapName),
+                &key,
+                value
+            );
+            if(res != 0) {
+                LOG(INFO) << " can not add new element into " << mapName << ", error is " << folly::errnoStr(errno);
+                lbStats_.bpfFailedCalls++;
+                return false;
+            }
+        } else {
+            auto res = bpfAdapter_->bpfMapDeleteElement(
+                bpfAdapter_->getMapFdByName(mapName),
+                &key
+            );
+            if(res != 0) {
+                LOG(INFO) << " can not delete element from " << mapName << ", error is " << folly::errnoStr(errno);
+                lbStats_.bpfFailedCalls++;
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+bool czKatranLb:: delSrcRoutingRule(const std::vector<std::string>& srcs)//--------------------------√
+{
+    if(!features_.srcRouting && !config_.testing) {
+        LOG(ERROR) << "Source based routing is not enabled for xdp forwarding plane";
+        return kError;
+    }
+
+    std::vector<folly::CIDRNetwork> src_networks;
+    for (auto& src : srcs) {
+        auto network = folly::IPAddress::tryCreateNetwork(src);
+        if(network.hasValue()) {
+            src_networks.push_back(network.value()); //提取value
+        }
+    }
+    return delSrcRoutingRule(src_networks);
+}
+
+bool czKatranLb:: delSrcRoutingRule(const std::vector<folly::CIDRNetwork>& srcs)//--------------------------√
+{
+    if(!features_.srcRouting && !config_.testing) {
+        LOG(ERROR) << "Source based routing is not enabled for xdp forwarding plane";
+        return kError;
+    }
+
+    for(auto& src : srcs) {
+        auto src_iter = lpmSrcMapping_.find(src);
+        if(src_iter == lpmSrcMapping_.end()) {
+            LOG(ERROR) << "can not find src: " << src.first.str() << " in lpmSrcMapping";
+            continue;
+        }
+
+        auto dst = numToReals_[src_iter->second];
+        decreaseRefCountForReal(dst);
+        if(!config_.testing) {
+            modifyLpmSrcRule(ModifyAction::DEL, src, src_iter->second);
+        }
+        lpmSrcMapping_.erase(src_iter);
+    }
+    return true;
+}
+
+bool czKatranLb:: addInlineDecapDst(const std::string& dst)//--------------------------√
+{
+    if(!features_.inlineDecap && !config_.testing) {
+        LOG(ERROR) << "Inline decap is not enabled for xdp forwarding plane";
+        return false;
+    }
+    if(validateAddress(dst) == AddressType::INVALID) {
+        LOG(ERROR) << fmt::format(
+            "Invalid dst address: {} for inline decap",
+        dst);
+        return false;
+    }
+
+    folly::IPAddress daddr (dst);
+    if(decapDsts_.find(daddr) != decapDsts_.end()) {
+        LOG(ERROR) << fmt::format(
+            "dst address: {} for inline decap already exists",
+        dst);
+        return false;
+    }
+    if(decapDsts_.size() + 1 > config_.maxDecapDst) {
+        LOG(ERROR) << "decapDst space exhausted";
+        return false;
+    }
+
+    VLOG(2) << "adding dst: " << dst << " to decapDsts_";
+    decapDsts_.insert(daddr);
+    if(!config_.testing) {
+        modifyDecapDst(ModifyAction::ADD, daddr);
+    }
+    return true;
+}
+
+bool czKatranLb:: modifyDecapDst(//--------------------------√
+    ModifyAction action,
+    const folly::IPAddress& dst,
+    uint32_t flags)
+{
+    auto addr = IpHelpers::parseAddrToBe(dst);
+
+    if(action == ModifyAction::ADD) {
+        auto res = bpfAdapter_->bpfUpdateMap(
+            bpfAdapter_->getMapFdByName(czKatranLbMaps::decap_dst),
+            &addr,
+            &flags
+        );
+        if(res != 0) {
+            LOG(ERROR) << " can not add new element into decap_dst, error is " << folly::errnoStr(errno);
+            lbStats_.bpfFailedCalls++;
+            return false;
+        }
+    } else {
+        auto res = bpfAdapter_->bpfMapDeleteElement(
+            bpfAdapter_->getMapFdByName(czKatranLbMaps::decap_dst),
+            &addr
+        );
+        if(res != 0) {
+            LOG(ERROR) << " can not delete element from decap_dst, error is " << folly::errnoStr(errno);
+            lbStats_.bpfFailedCalls++;
+            return false;
+        }
+    }  
+    return true;
+}
+
+bool czKatranLb:: modifyReal(//--------------------------√
+    const std::string& real, 
+    uint8_t flags, 
+    bool set)
+
+{
+    if(validateAddress(real) == AddressType::INVALID) {
+        LOG(ERROR) << fmt::format("Invalid real address: {}", real);
+        return false;
+    }
+
+    VLOG(4) << fmt::format(
+        "modifying real: {}",
+        real
+    );
+    folly::IPAddress raddr(real);
+    auto real_iter = reals_.find(raddr);
+    if(real_iter == reals_.end()) {
+        LOG(INFO) << fmt::format(
+            "can not find real: {} in reals_",
+            real
+        );
+        return false;
+    }
+
+    flags &= ~V6DADDR;
+    if(set) {
+        real_iter->second.flags |= flags;
+    } else {
+        real_iter->second.flags &= ~flags;
+    }
+    reals_[raddr].flags = real_iter->second.flags;
+    if(!config_.testing) {
+        updateRealsMap(raddr, real_iter->second.num, real_iter->second.flags);
+    }
+    return true;
+}
+
+const std::string czKatranLb:: getRealForFlow(const czkatranFlow& flow)
+{
+    //auot pckt = crea
+}
+
+
 }

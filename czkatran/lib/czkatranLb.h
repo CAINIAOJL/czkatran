@@ -15,6 +15,8 @@
 #include "BpfAdapter.h"
 #include "Vip.h"
 #include "czKatanMonitor.h"
+#include "czkatranSimulator.h"
+
 
 namespace czkatran {
 
@@ -208,8 +210,58 @@ class czKatranLb {
          * @param flags 标志
          */
         bool addVip(const VipKey& vip, const uint32_t flags = 0);
+//------------------------------------2025-2-14-------------------------------
 
+//------------------------------------2025-2-15-------------------------------
+        /**
+         * @brief 修改vip标志
+         * @param VipKey vip相关信息
+         * @param flag 标志
+         * @param set 是否设置标志
+         */
+        bool modifyVip(
+                const VipKey& vip, 
+                uint32_t flag, 
+                bool set = true);
         
+        /**
+         * @brief 添加健康检查目标
+         * @param somark somark
+         * @param dst 目的地址
+         */
+        bool addHealthcheckerDst(
+                const uint32_t somark, 
+                const std::string& dst);
+        /**
+         * @brief 添加源路由规则
+         * @param srcs 源路由规则
+         * @param dst 目的地址
+         */
+        int addSrcRoutingRule(
+                const std::vector<std::string>& srcs,
+                const std::string& dst);
+        
+        int addSrcRoutingRule(
+                const std::vector<folly::CIDRNetwork>& srcs,
+                const std::string& dst);
+        //删除源路由规则
+        bool delSrcRoutingRule(const std::vector<std::string>& srcs);
+        
+        bool delSrcRoutingRule(const std::vector<folly::CIDRNetwork>& srcs);
+
+        //增添decapDst
+        bool addInlineDecapDst(const std::string& dst);
+        
+        bool modifyReal(
+                const std::string& real, 
+                uint8_t flags, 
+                bool set = true);
+        
+        //为real组成五元组 flow流数据
+        const std::string getRealForFlow(const czkatranFlow& flow);
+//------------------------------------2025-2-15-------------------------------
+
+
 //--------------------------------------private---------------------------------
     private:
         //更新bpf-map
@@ -226,7 +278,7 @@ class czKatranLb {
          */
         lb_stats getLbStats(uint32_t position, const std::string& map = "stats");
 
-        
+//------------------------------------2025-2-14-------------------------------
         //减少实际引用计数器
         void decreaseRefCountForReal(const folly::IPAddress& real);
 
@@ -278,6 +330,25 @@ class czKatranLb {
          */
         vip_definition vipKeyToVipDefinition(const VipKey& vipKey);
 //------------------------------------2025-2-14-------------------------------
+
+//------------------------------------2025-2-15-------------------------------
+        bool modifyLpmSrcRule(
+                ModifyAction action,
+                const folly::CIDRNetwork& src,
+                uint32_t rnum);
+
+        bool modifyLpmMap(
+                const std::string& lpmMapNamePrefix,
+                ModifyAction action,
+                const folly::CIDRNetwork& addr,
+                void* value);
+
+        bool modifyDecapDst(
+                ModifyAction action,
+                const folly::IPAddress& dst,
+                const uint32_t flags = 0);
+
+//------------------------------------2025-2-15-------------------------------
 
         // 配置信息
         czKatranConfig config_;
@@ -364,7 +435,13 @@ class czKatranLb {
         //VipKey----------------->vip
         std::unordered_map<VipKey, Vip, VipKeyHasher> vips_;
         
-        std::unordered_map<uint32_t, folly::IPAddress> quciMapping_;   
+        std::unordered_map<uint32_t, folly::IPAddress> quciMapping_; 
+        
+        std::unordered_map<uint32_t, folly::IPAddress> hcReals_;
+
+        std::unordered_map<folly::CIDRNetwork, uint32_t> lpmSrcMapping_;
+
+        std::unordered_set<folly::IPAddress> decapDsts_;
 };
 
 

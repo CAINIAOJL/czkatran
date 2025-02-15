@@ -18,11 +18,11 @@
 #include "czkatranGueOptionalTestFixtures.h"
 #include "czkatranHCTestFixtures.h"
 #include "czkatranOptionalTestFixtures.h"
-//#include "czkatranTestProvision.h"
+#include "czkatranTestProvision.h"
 //#include "czkatranTestUtil.h"
 #include "czkatranUdpStableRtTestFixtures.h"
 
-//using namespace czkatran::testing
+using namespace czkatran::testing;
 using czkatranFeatureEnum = czkatran::czkatranFeatureEnum;
 
 #ifndef MAX_VIPS
@@ -60,8 +60,16 @@ DEFINE_int32(remove_features_mask,0,"Bitmask of katran features to install. 1 = 
     "32 = LocalDeliveryOptimization. "
     "e.g. 13 means SrcRouting + Introspection + GueEncap");
 
-
-
+KatranTestParam getTestParam() {
+    if(FLAGS_gue) {
+        return createDefaultTestParam(TestMode::GUE);
+    } else if(FLAGS_tpr) {
+        return createTPRTestParam();
+    } else {
+        return createDefaultTestParam(TestMode::DEFAULT);
+    }
+}
+//------------------------------------2025-2-15-------------------------------
     
 
 int main(int argc, char** argv) {
