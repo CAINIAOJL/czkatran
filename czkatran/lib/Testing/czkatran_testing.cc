@@ -19,7 +19,7 @@
 #include "czkatranHCTestFixtures.h"
 #include "czkatranOptionalTestFixtures.h"
 #include "czkatranTestProvision.h"
-//#include "czkatranTestUtil.h"
+#include "czkatranTestUtil.h"
 #include "czkatranUdpStableRtTestFixtures.h"
 
 using namespace czkatran::testing;
@@ -60,7 +60,7 @@ DEFINE_int32(remove_features_mask,0,"Bitmask of katran features to install. 1 = 
     "32 = LocalDeliveryOptimization. "
     "e.g. 13 means SrcRouting + Introspection + GueEncap");
 
-KatranTestParam getTestParam() {
+czkatranTestParam getTestParam() {
     if(FLAGS_gue) {
         return createDefaultTestParam(TestMode::GUE);
     } else if(FLAGS_tpr) {
@@ -79,5 +79,76 @@ int main(int argc, char** argv) {
     czkatran::TesterConfig config;
     auto testParam = getTestParam();
 //------------------------------------2025-2-14------------------------------- 
-}
 
+//------------------------------------2025-2-16-------------------------------
+
+    config.inputFileName = FLAGS_pcap_input;
+    config.outputFileName = FLAGS_pcap_output;
+    config.testData = testParam.testData;
+
+    if(FLAGS_packet_num >= 0) {
+        config.singleTestRunPacketNumber_ = FLAGS_packet_num;
+    }
+    czkatran::BpfTester tester(config);
+    if(FLAGS_print_base64) {
+        if(FLAGS_pcap_input.empty()) {
+            std::cout << "The path of pcap_input file is empty";
+            return 1;
+        }
+        tester.printPktsBase64();
+        return 0;
+    }
+
+    czkatran::czKatranMonitorConfig czkmconfig;
+    czkmconfig.path = FLAGS_monitor_output;
+    if(FLAGS_iobuf_storage) {
+        czkmconfig.storage = czkatran::PcapStorageFormat::IOBUF;
+        czkmconfig.bufferSize = k1Mbyte;
+    }
+
+    czkatran::czKatranConfig kconfig {
+        kMainInterface,
+        kV4TunInterface,
+        kV6TunInterface,
+        FLAGS_balancer_prog,
+        FLAGS_healthchecking_prog,
+        kDefaultMac,
+        kDefaultPriority,
+        kNoExternalMap,
+        kDefaultKatranPos
+    };
+
+    kconfig.enableHc = FLAGS_healthchecking_prog.empty() ? false : true;
+    kconfig.monitorConfig = czkmconfig;
+    kconfig.katranSrcV4 = "10.0.13.37";
+    kconfig.katranSrcV6 = "fc00:2307::1337";
+    kconfig.localMac = kLocalMac;
+    kconfig.maxVips = MAX_VIPS;
+
+    auto lb = std::make_unique<czkatran::czKatranLb>
+                    (kconfig, std::make_unique<czkatran::BpfAdapter>(kconfig.memlockUnlimited));
+
+    lb->loadBpfProgs();
+    auto balancer_prog_fd = lb->getczKatranProgFd();
+    if(FLAGS_optional_counter_tests) {
+
+    }
+
+//------------------------------------2025-2-16-------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+}

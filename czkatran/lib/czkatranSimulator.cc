@@ -22,7 +22,7 @@ namespace {
     constexpr uint8_t kDefaultTtl = 64;
     constexpr uint8_t kIPv6AddrSize = 16;
     constexpr folly::StringPiece kEmptyString = "";  
-}
+} //namespace
 
 namespace {
     void createV4Packet(//--------------------------√
@@ -104,8 +104,113 @@ namespace {
 //------------------------------------2025-2-15-------------------------------
 //--------------------------√
 
+//------------------------------------2025-2-16-------------------------------
+
+const std::string toV4String(uint32_t ip) {//--------------------------√
+    return folly::IPAddressV4::fromLong(ip).str();
 }
 
+const std::string toV6String(uint8_t const* ipv6) {//--------------------------√
+    folly::ByteRange bytes(ipv6, kIPv6AddrSize);
+    return folly::IPAddressV6::fromBinary(bytes).str();
+}
+
+
+std::string getPcktDst(std::unique_ptr<folly::IOBuf>& pckt) {//--------------------------√
+    if(pckt->computeChainDataLength() < sizeof(struct ethhdr)) {
+        LOG(ERROR) << "result pckt is too short, less than ethhdr";
+        return kEmptyString.data();
+    }
+
+    const struct ethhdr* ehdr = 
+        reinterpret_cast<const struct ethhdr*>(pckt->data());
+        if(ehdr->h_proto == htonl(ETH_P_IP)) {
+            if(pckt->computeChainDataLength() < (sizeof(struct ethhdr) + sizeof(struct iphdr))) {
+                LOG(ERROR) << "result pckt is too short, less than iphdr";
+                return kEmptyString.data();
+            }
+            const struct iphdr* iph = 
+                reinterpret_cast<const struct iphdr*>(pckt->data() + sizeof(struct ethhdr));
+            return toV4String(iph->daddr);
+        } else {
+            if(pckt->computeChainDataLength() < (sizeof(struct ethhdr) + sizeof(struct ipv6hdr))) {
+                LOG(ERROR) << "result pckt is too short, less than ipv6hdr";
+                return kEmptyString.data();
+            }
+            const struct ipv6hdr* iph = 
+                reinterpret_cast<const struct ipv6hdr*>(pckt->data() + sizeof(struct ethhdr));
+            return toV6String(iph->daddr.s6_addr);
+        }
+}
+
+//通过flow五元组，构造数据包
+std::unique_ptr<folly::IOBuf> createPacketFromFlow(const czkatranFlow& flow)//--------------------------√
+{
+    int offset = sizeof(struct ethhdr);
+    bool is_tcp = true;
+    bool is_ipv4 = true;
+    size_t l3hdr_len; //l3层长度
+
+    auto srcExp = folly::IPAddress::tryFromString(flow.src);
+    auto dstExp = folly::IPAddress::tryFromString(flow.dst);
+
+    if(srcExp.hasError() || dstExp.hasError()) {
+        LOG(ERROR) << fmt::format(
+            "failed to format flow src: {}, dst: {} to IPAddress",
+            flow.src,
+            flow.dst
+        );
+        return nullptr;
+    }
+
+    auto src = srcExp.value();
+    auto dst = dstExp.value();
+
+    if(src.family() != dst.family()) {
+        LOG(ERROR) << "src and dst family not match";
+        return nullptr;
+    }
+
+    auto pckt = folly::IOBuf::create(kMaxXdpPcktSize);
+    if(!pckt) {
+        LOG(ERROR) << "failed to create packet";
+        return pckt;
+    }
+    if(src.family() == AF_INET) {
+        l3hdr_len = sizeof(struct iphdr);
+    } else {
+        l3hdr_len = sizeof(struct ipv6hdr);
+    }
+
+    offset += l3hdr_len;
+    switch(flow.proto) {
+        case IPPROTO_TCP:
+            break;
+        case IPPROTO_UDP:
+            is_tcp = false;
+            break;
+        default:
+            LOG(ERROR) << fmt::format("unsupported protocol: {}", flow.proto);
+            return nullptr;
+    }
+    pckt->append(kTestPacketSize);
+    auto playload_len = kTestPacketSize - sizeof(struct ethhdr);
+    if(is_ipv4) {
+        createV4Packet(src, dst, pckt, flow.proto, playload_len);
+    } else {
+        createV6Packet(src, dst, pckt, flow.proto, playload_len);
+    }
+    playload_len -= l3hdr_len; 
+    if(is_tcp) {
+        createTcpHeader(pckt, flow.srcport, flow.dstport, offset);
+    } else {
+        createUdpHeader(pckt, flow.srcport, flow.dstport, offset, playload_len);
+    }
+    return pckt;
+}
+
+} //namespace
+//------------------------------------2025-2-16-------------------------------
 
 czkatranSimulator::czkatranSimulator(int progfd) : prog_fd(prog_fd) {//--------------------------√
     affinitizeSimulatorThread();
@@ -179,7 +284,7 @@ std::unique_ptr<folly::IOBuf> czkatranSimulator:: runSimulationInternal(
 
 const std::string czkatranSimulator::getRealForFlow(const czkatranFlow& flow) //--------------------------√
 {
-    auto pckt = creatPacketFromFlow(flow);
+    auto pckt = createPacketFromFlow(flow);
     if(!pckt) {
         return kEmptyString.data();// ""
     }

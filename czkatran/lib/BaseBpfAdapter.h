@@ -276,6 +276,22 @@ class BaseBpfAdapter {
          * @return 0 in success or other in failure
          */
         static int getBpfMapInfo(int fd, struct bpf_map_info* info);
+//------------------------------------2025-2-16-------------------------------
+        static bool isMapInBpfObject(
+            const std::string& path,
+            const std::string& mapName);
+        
+
+        static int createNamedBpfMap(
+            const std::string& name,
+            unsigned int type,
+            unsigned int key_size,
+            unsigned int value_size,
+            unsigned int max_entries,
+            unsigned int map_flags,
+            int numa_node = -1);
+        
+//------------------------------------2025-2-16-------------------------------
 
 //------------------------------------2025-2-14-------------------------------
     protected:

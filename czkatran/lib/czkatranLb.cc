@@ -11,6 +11,7 @@
 #include <glog/logging.h>
 
 #include "czkatranLbStructs.h"
+#include "Balancer_structs.h"
 #include "IpHelpers.h"
 
 namespace czkatran {
@@ -25,7 +26,7 @@ czKatranLb::czKatranLb(const czKatranConfig& config,
                        numaNodes_(config.numaNodes),
                        lruMapsFd_(kMaxForwardingCores),
                        flowDebugMapsFd_(kMaxForwardingCores),
-                       globalLruMapsFd(kMaxForwardingCores)
+                       globalLruMapsFd_(kMaxForwardingCores)
 {   
     //对象构造的时候，先将三个队列填满，我们需要从队列中取出元素，在我们不需要的时候，将元素放回队列之中
     //比较巧妙的一种思想技术
@@ -1051,10 +1052,797 @@ bool czKatranLb:: modifyReal(//--------------------------√
     return true;
 }
 
-const std::string czKatranLb:: getRealForFlow(const czkatranFlow& flow)
+const std::string czKatranLb:: getRealForFlow(const czkatranFlow& flow)//--------------------------√
 {
     //auot pckt = crea
+    std::string result;
+    if(!initSimulator()) {
+        return result;
+    }
+    result = simulator_->getRealForFlow(flow);
+    return result;
+}
+//------------------------------------2025-2-15-------------------------------
+
+
+//------------------------------------2025-2-16-------------------------------
+bool czKatranLb:: initSimulator()//--------------------------√
+{
+    if(!progsLoaded_) {
+        LOG(ERROR) << "bpf programs are not loaded";
+        return false;
+    }
+    simulator_ = std::make_unique<czkatranSimulator>(getczKatranProgFd());
+    return true;
 }
 
+void czKatranLb:: initFlowDebugPrototypeMap()//--------------------------√
+{
+    int flow_proto_fd, res;
+    if(forwardingCores_.size() != 0) {
+        flow_proto_fd = flowDebugMapsFd_[forwardingCores_[kFirstElem]];
+    } else {
+        VLOG(3) << "create generic flow debug lru";
+        flow_proto_fd = bpfAdapter_->createNamedBpfMap(
+            czKatranLbMaps::flow_debug_lru,
+            kBpfMapTypeLruHash,
+            sizeof(struct flow_key),
+            sizeof(struct flow_debug_info),
+            czkatran::kFallbackLruSize,
+            kMapNoFlags,
+            kNoNuma
+        );
+    }
+    if(flow_proto_fd < 0) {
+        throw std::runtime_error(fmt::format(
+            "can not create flow_Debug_lru prototype, error is {}",
+            folly::errnoStr(errno)
+        ));
+    }
+    res = bpfAdapter_->setInnerMapProtoType(
+        czKatranLbMaps::flow_debug_maps, flow_proto_fd
+    );
+    if(res < 0) {
+        throw std::runtime_error(fmt::format(
+            "can not set inner map prototype map_fd for flow_Debug_lru map, error is {}",
+            folly::errnoStr(errno)
+        ));
+    }
+    VLOG(3) << "created flow_Debug_lru prototype";
+}
+
+
+void czKatranLb:: initGlobalLruPrototypeMap()//--------------------------√
+{
+    VLOG(0) << __func__;
+    int prog_fd;
+    if(forwardingCores_.size() != 0) {
+        prog_fd = globalLruMapsFd_[forwardingCores_[kFirstElem]];
+    } else {
+        VLOG(3) << "create generic global_lru";
+        prog_fd = bpfAdapter_->createNamedBpfMap(
+            czKatranLbMaps::global_lru,
+            kBpfMapTypeLruHash,
+            sizeof(struct flow_key),
+            sizeof(uint32_t),
+            czkatran::kFallbackLruSize,
+            kMapNoFlags,
+            kNoNuma
+        );
+    }
+    if(prog_fd < 0) {
+        throw std::runtime_error(fmt::format(
+            "can not create global_lru prototype, error is {}",
+            folly::errnoStr(errno)
+        ));
+    }
+    int res = bpfAdapter_->setInnerMapProtoType(
+        czKatranLbMaps::global_lru_maps, prog_fd
+    );
+    if(res < 0) {
+        throw std::runtime_error(fmt::format(
+            "can not set inner map proto type for global_lru_map, error is {}",
+            folly::errnoStr(errno)
+        ));
+    }
+    VLOG(1) << "created global_lru prototype";
+}
+
+void czKatranLb:: initialSanityChecking(//--------------------------√
+    bool flowDebug, 
+    bool globalLru)
+{
+    int res;
+    std::vector<std::string> maps;
+
+    maps.push_back(czKatranLbMaps::ctl_array);
+    maps.push_back(czKatranLbMaps::vip_map);
+    maps.push_back(czKatranLbMaps::ch_rings);
+    maps.push_back(czKatranLbMaps::reals);
+    maps.push_back(czKatranLbMaps::stats);
+    maps.push_back(czKatranLbMaps::lru_mapping);
+    maps.push_back(czKatranLbMaps::server_id_map);
+    maps.push_back(czKatranLbMaps::lru_miss_stats);
+    maps.push_back(czKatranLbMaps::vip_miss_stats);
+
+    if(flowDebug) {
+        maps.push_back(czKatranLbMaps::flow_debug_maps);
+    }
+    if(globalLru) {
+        maps.push_back(czKatranLbMaps::global_lru_maps);
+    }
+
+    res = getczKatranProgFd();
+    if(res < 0) {
+        throw std::invalid_argument(fmt::format(
+            "can not get katran prog fd, error is {}",
+            folly::errnoStr(errno)
+        ));
+    }
+
+    if(config_.enableHc) {
+        res = getHealthcheckerProgFd();
+        if(res < 0) {
+            throw std::invalid_argument(fmt::format(
+                "can not get healthchecker prog fd, error is {}",
+                folly::errnoStr(errno)
+            ));
+        }
+        maps.push_back(czKatranLbMaps::hc_ctrl_map);
+        maps.push_back(czKatranLbMaps::hc_reals_map);
+        maps.push_back(czKatranLbMaps::hc_stats_map);
+    }
+
+    //检查xdp程序中的map是否存在
+    for(auto& map : maps) {
+        res = bpfAdapter_->getMapFdByName(map);
+        if(res < 0) {
+            VLOG(4) << fmt::format(
+                "this map: {} is not in xdp prog",
+                map
+            );
+            throw std::invalid_argument(fmt::format(
+                "map not found in xdp prog, error is {}",
+                folly::errnoStr(errno)
+            ));
+        }
+    }
+}
+
+void czKatranLb:: featureDiscovering()//--------------------------√
+{
+    std::string xdp = kBalancerProgName.toString();
+    std::string hctc = kHealthcheckerProgName.toString();
+    if(bpfAdapter_->isMapInProg(
+        xdp,
+        czKatranLbMaps::lpm_src_v4
+    )){
+        VLOG(2) << "source bassed routing is supported";
+        features_.srcRouting = true;
+    } else {
+        features_.srcRouting = false;
+    }
+
+    if(bpfAdapter_->isMapInProg(
+        xdp,
+        czKatranLbMaps::decap_dst
+    )) {
+        VLOG(2) << "inline decap is supported";
+        features_.inlineDecap = true;
+    } else {
+        features_.inlineDecap = false;
+    }
+//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    if(bpfAdapter_->isMapInProg(
+        xdp,
+        czKatranLbMaps::event_pipe
+    )) {
+        VLOG(2) << "event pipe is supported";
+        features_.introspection = true;
+    } else {
+        features_.introspection = false;
+    }
+
+    if(bpfAdapter_->isMapInProg(
+        xdp, 
+        czKatranLbMaps::pckt_srcs
+    )) {
+        VLOG(2) << "GUE encapsulation is supported";
+        features_.gueEncap = true;
+    } else {
+        features_.gueEncap = false;
+    }
+
+    if(bpfAdapter_->isMapInProg(
+        hctc,
+        czKatranLbMaps::hc_pckt_srcs_map
+    )) {
+        VLOG(2) << "direct healthchecking is supported";
+        features_.directHealthchecking = true;
+    } else {
+        features_.directHealthchecking = false;
+    }
+    if(bpfAdapter_->isMapInProg(
+        xdp,
+        czKatranLbMaps::flow_debug_maps
+    )) {
+        VLOG(2) << "flow debug is supported";
+        features_.flowDebug = true;
+    } else {
+        features_.flowDebug = false;
+    }
+}
+
+
+void czKatranLb:: setupGueEnvironment()//--------------------------√
+{
+    if(config_.katranSrcV4.empty() && config_.katranSrcV6.empty()) {
+        throw std::runtime_error(fmt::format(
+            "can not setup GUE environment, srcV4 and srcV6 are empty"
+        ));
+    }
+
+    if(!config_.katranSrcV4.empty()) {
+        //转换成网络序
+        auto srcV4 = 
+            folly::IPAddress(config_.katranSrcV4);
+        auto srcV4Be = IpHelpers::parseAddrToBe(srcV4);
+        uint32_t key = kSrcV4Pos;
+        auto res = bpfAdapter_->bpfUpdateMap(
+            bpfAdapter_->getMapFdByName(czKatranLbMaps::pckt_srcs),
+            &key,
+            &srcV4Be
+        );
+        if(res < 0) {
+            throw std::runtime_error(fmt::format(
+                "can not update srcV4 in pckt_srcs map, error is {}",
+                folly::errnoStr(errno)
+            ));
+        } else {
+            LOG(INFO) << fmt::format(
+                "updated srcV4: {} in pckt_srcs map",
+                config_.katranSrcV4
+            );
+        }
+    } else {
+        LOG(ERROR) << "empty IPV4 address for GUE as source address";
+    }
+
+    if(!config_.katranSrcV6.empty()) {
+        //转换成网络序
+        auto srcV6 = 
+            folly::IPAddress(config_.katranSrcV6);
+        auto srcV6Be = IpHelpers::parseAddrToBe(srcV6);
+        uint32_t key = kSrcV6Pos;
+        auto res = bpfAdapter_->bpfUpdateMap(
+            bpfAdapter_->getMapFdByName(czKatranLbMaps::pckt_srcs),
+            &key,
+            &srcV6Be
+        );
+        if(res < 0) {
+            throw std::runtime_error(fmt::format(
+                "can not update srcV6 in pckt_srcs map, error is {}",
+                folly::errnoStr(errno)
+            ));
+        } else {
+            LOG(INFO) << fmt::format(
+                "updated srcV6: {} in pckt_srcs map",
+                config_.katranSrcV6
+            );
+        }
+    } else {
+        LOG(ERROR) << "empty IPV6 address for GUE as source address";
+    }
+
+    LOG(INFO) << "czkatran GUE evrionment is ready!";
+}
+
+void czKatranLb:: enableRecirculation()//--------------------------√
+{
+    uint32_t key = kRecirculationIndex;
+    //int balancerProgFd = bpfAdapter_->getProgFdByName(
+        //kBalancerProgName.toString()
+    //);
+    int balancerProgfd = getczKatranProgFd();
+    auto res = bpfAdapter_->bpfUpdateMap(
+        bpfAdapter_->getMapFdByName("subprograms"),
+        &key,
+        &balancerProgfd
+    );
+    if(res < 0) {
+        throw std::runtime_error(fmt::format(
+            "can not update recirculation in subprograms map, error is {}",
+            folly::errnoStr(errno)
+        ));
+    }
+}
+
+void czKatranLb:: setupHcEnvironment()//--------------------------√
+{
+    auto map_fd = bpfAdapter_->getMapFdByName(czKatranLbMaps::hc_pckt_srcs_map);
+    if(config_.katranSrcV4.empty() && config_.katranSrcV6.empty()) {
+        throw std::runtime_error(fmt::format(
+            "No source address provided for direct healthchecking"
+        ));
+    }
+    if(!config_.katranSrcV4.empty()) {
+        auto srcV4 = 
+            IpHelpers::parseAddrToBe(folly::IPAddress(config_.katranSrcV4));
+        uint32_t key = kSrcV4Pos;
+        auto res = bpfAdapter_->bpfUpdateMap(
+            map_fd,
+            &key,
+            &srcV4
+        );
+        if(res < 0) {
+            throw std::runtime_error(fmt::format(
+                "can not update srcV4: {} in hc_pckt_srcs_map, error is {}",
+                srcV4,
+                folly::errnoStr(errno)
+            ));
+        } else {
+            LOG(INFO) << fmt::format(
+                "Update srcV4: {} in hc_pckt_srcs_map for direct healthchecking",
+                config_.katranSrcV4
+            );
+        }
+    } else {
+        LOG(ERROR) << "empty IPV4 address for direct healthchecking";
+    }
+
+    if(!config_.katranSrcV6.empty()) {
+        auto srcV6 = 
+            IpHelpers::parseAddrToBe(folly::IPAddress(config_.katranSrcV6));
+        uint32_t key = kSrcV6Pos;
+        auto res = bpfAdapter_->bpfUpdateMap(
+            map_fd,
+            &key,
+            &srcV6
+        );
+        if(res < 0) {
+            throw std::runtime_error(fmt::format(
+                "can not update srcV6: {} in hc_pckt_srcs_map, error is {}",
+                srcV6,
+                folly::errnoStr(errno)
+            ));
+        } else {
+            LOG(INFO) << fmt::format(
+                "Update srcV6: {} in hc_pckt_srcs_map for direct healthchecking",
+                config_.katranSrcV6
+            );
+        }
+    } else {
+        LOG(ERROR) << "empty IPV6 address for direct healthchecking";
+    }
+
+    std::array<struct hc_mac, 2> macs;
+    if(config_.localMac.size() != 6) {
+        throw std::invalid_argument(fmt::format(
+            "src mac's size is not equal to 6 bytes, src mac is {}",
+            config_.localMac
+        ));
+    }
+
+    for(int i = 0; i < 6; i++) {
+        macs[kHcSrcMacPos].mac[i] = config_.localMac[i];
+        macs[kHcDstMacPos].mac[i] = config_.defaultMac[i];
+    }
+
+    //两个位置
+    for(auto position : {kHcSrcMacPos, kHcDstMacPos}) {
+        auto res = bpfAdapter_->bpfUpdateMap(
+            bpfAdapter_->getMapFdByName(czKatranLbMaps::hc_pckt_macs),
+            &position,
+            &macs[position]
+        );
+        if(res < 0) {
+            throw std::runtime_error(fmt::format(
+                "can not update mac in hc_pckt_macs, error is {}",
+                folly::errnoStr(errno)
+            ));
+        }
+    }
+}
+
+void czKatranLb:: startIntrospectionRoutines()//--------------------------√
+{
+    auto monitor_config = config_.monitorConfig;
+    monitor_config.nCpus = czkatran::BpfAdapter::getPossibleCpus();
+    monitor_config.mapFd = bpfAdapter_->getMapFdByName(
+        czKatranLbMaps::event_pipe
+    );
+    monitor_ = std::make_unique<czkatranMonitor> (monitor_config);
+}
+
+void czKatranLb:: attachFlowDebugLru(int core)//--------------------------√
+{
+    int map_fd, res, key;
+    key = core;
+    map_fd =flowDebugMapsFd_[core];
+    if(map_fd < 0) {
+        throw std::runtime_error(fmt::format(
+            "can not attach flow_debug_map [core: {} map_fd(flow_debug_lru's): {}], map fd is invalid",
+            key,
+            map_fd
+        ));
+    }
+    res = bpfAdapter_->bpfUpdateMap(
+        bpfAdapter_->getMapFdByName(czKatranLbMaps::flow_debug_maps),
+        &key,
+        &map_fd
+    );
+    if(res < 0) {
+        throw std::runtime_error(fmt::format(
+            "can not update flow_debug_map, error is {}",
+            folly::errnoStr(errno)
+        ));
+    }
+    VLOG(3) << fmt::format(
+        "set cpu core: {} to flow debug map map_fd {}",
+        core,
+        map_fd 
+    );
+}
+
+void czKatranLb:: attachGlobalLru(int core)//--------------------------√
+{
+    VLOG(0) << __func__;
+    int key = core;
+    int map_fd = globalLruMapsFd_[core];
+    if(map_fd < 0) {
+        throw std::runtime_error(fmt::format(
+            "can not attach global_lru_map [core: {} map_fd(global_lru's): {}], map fd is invalid",
+            key,
+            map_fd
+        ));
+    }
+    auto res = bpfAdapter_->bpfUpdateMap(
+        bpfAdapter_->getMapFdByName(czKatranLbMaps::global_lru_maps),
+        &key,
+        &map_fd
+    );
+    if(res < 0) {
+        throw std::runtime_error(fmt::format(
+            "can not update global_lru_map, error is {}",
+            folly::errnoStr(errno)
+        ));
+    }
+    VLOG(1) << fmt::format(
+        "set cpu core: {} to global_lru_map map_fd {}",
+        core,
+        map_fd 
+    );
+}
+
+void czKatranLb:: attachLrus(//--------------------------√
+    bool flowDebug, 
+    bool globalLru)
+{
+    if(!progsLoaded_) {
+        throw std::runtime_error(
+            "can not attach lrus, bpf progs are not loaded"
+        );
+    }
+
+    int map_fd, res, key;
+    //先更新主要的lru_mapping
+    for(const auto& core : forwardingCores_) {
+        key = core; //key 对听cpu核心
+        map_fd = lruMapsFd_[core]; //每个核心对应的lru_hash的map-fd
+        res = bpfAdapter_->bpfUpdateMap(
+            bpfAdapter_->getMapFdByName(czKatranLbMaps::lru_mapping),
+            &key, 
+            &map_fd
+        );
+        if(res < 0) {
+            throw std::runtime_error(fmt::format(
+                "can not update lru_mapping map to forwarding core, error is {}",
+                folly::errnoStr(errno)
+            ));
+        }
+        if(flowDebug) {
+            //选择更新flow_debug_map
+            attachFlowDebugLru(core);
+        }
+        if(globalLru) {
+            //选择更新global_lru_map
+            attachGlobalLru(core);
+        }
+    }
+
+    if(globalLru) {
+        globalLruFallbackFd_ = 
+            bpfAdapter_->getMapFdByName(czKatranLbMaps::fallback_glru);
+    }
+}
+
+void czKatranLb:: loadBpfProgs()//--------------------------√
+{
+    int res;
+    bool flowDebugInProg = false;
+    bool globalLruInProg = false;
+    flowDebugInProg = bpfAdapter_->isMapInBpfObject(
+        config_.balancerProgPath,
+        czKatranLbMaps::flow_debug_maps
+    );
+    globalLruInProg = bpfAdapter_->isMapInBpfObject(
+        config_.balancerProgPath,
+        czKatranLbMaps::global_lru_maps
+    );
+    //1.初始化lru，包含“lru_mapping, global_lru_map, flow_debug_map”，将对应的数组填充初始化
+    initLrus(/*false*/flowDebugInProg, /*true*/globalLruInProg);
+
+    if(flowDebugInProg) {
+        //2.初始化flow_debug_map中的flow_debug_lru map, 将对应的数组填充初始化
+        initFlowDebugPrototypeMap();
+    }
+    if(globalLruInProg) {
+        //3.初始化global_lru_map中的global_lru map, 将对应的数组填充初始化
+        initGlobalLruPrototypeMap();
+    }
+    //4.加载bpf程序
+    res = bpfAdapter_->loadBpfProg(config_.balancerProgPath);
+    if(res) {
+        throw std::invalid_argument(fmt::format(
+            "can not load balancer bpf prog, error is {}",
+            folly::errnoStr(errno)
+        ));
+    }
+
+    if(config_.enableHc) {
+        //5.加载健康检查程序
+        res = bpfAdapter_->loadBpfProg(config_.healthcheckingProgPath);
+        if(res) {
+            throw std::invalid_argument(fmt::format(
+                "can not load healthchecking bpf prog, error is {}",
+                folly::errnoStr(errno)
+            ));
+        }
+    }
+    //6.检测所有的bpf-map
+    initialSanityChecking(flowDebugInProg, globalLruInProg);
+    //7.探测特征值
+    featureDiscovering();
+
+    if(features_.gueEncap) {
+        //8.设置GUE环境
+        setupGueEnvironment();
+    }
+
+    if(features_.inlineDecap) {
+        //9.设置Recirculation map
+        enableRecirculation();
+    }   
+
+    //update ctl_array
+    std::vector<uint32_t> balancer_ctl_key = {kMacAddrPos};
+
+    for(auto& ctl_key : balancer_ctl_key) {
+        res = bpfAdapter_->bpfUpdateMap(
+            bpfAdapter_->getMapFdByName(czKatranLbMaps::ctl_array),
+            &ctl_key,
+            &ctlValues_[ctl_key]
+        );
+
+        if(res < 0) {
+            throw std::invalid_argument(fmt::format(
+                "can not update ctl_array, error is {}",
+                folly::errnoStr(errno)
+            ));
+        }
+    }
+
+    if(config_.enableHc) {
+        std::vector<uint32_t> hc_ctl_key = {kMainIntfPos};
+        if(config_.tunnelBasedHCEncap) {
+            hc_ctl_key.push_back(kIpv4TunPos);
+            hc_ctl_key.push_back(kIpv6TunPos);
+        }
+        for(auto& hc_key : hc_ctl_key) {
+            res = bpfAdapter_->bpfUpdateMap(
+                bpfAdapter_->getMapFdByName(
+                    czKatranLbMaps::hc_ctrl_map
+                ),
+                &hc_key,
+                &ctlValues_[hc_key].ifindex
+            );
+            if(res < 0) {
+                throw std::invalid_argument(fmt::format(
+                    "can not update hc_ctrl_map, error is {}",
+                    folly::errnoStr(errno)
+                ));
+            }
+        }
+        if(features_.directHealthchecking) {
+            //10.设置健康检查环境
+            setupHcEnvironment();
+        }
+    }
+    progsLoaded_ = true; //加载xdp对象成功
+//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    if(features_.introspection) {
+        //11.开启监控器
+        startIntrospectionRoutines(); 
+        introspectionStarted_ = true;
+    }
+
+    //12.在xdp程序中，通过我们之前在类对象中存储的向量值，更新lru_mapping，flow_debug_map中的flow_debug_lru map, global_lru_map中的global_lru map, 
+    attachLrus(flowDebugInProg, globalLruInProg);
+
+    vip_definition vip_def;
+    memset(&vip_def, 0, sizeof(vip_definition));
+    uint32_t key = 0;
+    res = bpfAdapter_->bpfUpdateMap(
+        bpfAdapter_->getMapFdByName(czKatranLbMaps::vip_miss_stats),
+        &key,
+        &vip_def
+    );
+    if(res) {
+        LOG(ERROR) << fmt::format("can not update vip_miss_stats map, error is {}", folly::errnoStr(errno));
+    }
+}
+
+int czKatranLb:: createLruMap(//--------------------------√
+    int size,
+    int flags,
+    int numaNode,
+    int cpu)
+{
+    return bpfAdapter_->createNamedBpfMap(
+        czKatranLbMaps::czkatran_lru + std::to_string(cpu),
+        kBpfMapTypeLruHash,
+        sizeof(struct flow_key),
+        sizeof(struct real_pos_lru),
+        size,
+        flags,
+        numaNode
+    );
+}
+
+void czKatranLb:: initFlowDebugMapForCore(//--------------------------√
+    int core, 
+    int size, 
+    int flags, 
+    int numaNode)
+{
+    int lru_fd;
+    VLOG(3) << "create flow debug lru for core: " << core;
+    lru_fd = bpfAdapter_->createNamedBpfMap(
+        czKatranLbMaps::flow_debug_lru,
+        kBpfMapTypeLruHash,
+        sizeof(struct flow_key),
+        sizeof(struct flow_debug_info),
+        size,
+        flags,
+        numaNode
+    );
+    if(lru_fd < 0) {
+        LOG(ERROR) << "can not create flow debug lru for core: " << core;
+        throw std::runtime_error(fmt::format(
+            "can not create flow debug lru map for core, error : {}",
+            folly::errnoStr(errno)
+        ));
+    }
+    VLOG(3) << "flow debug lru map for core: " << core << " created";
+    flowDebugMapsFd_[core] = lru_fd;
+}
+
+void czKatranLb:: initGlobalLruMapForCore(//--------------------------√
+    int core, 
+    int size, 
+    int flags, 
+    int numaNode)
+{
+    VLOG(0) << __func__;
+    int lru_fd;
+    VLOG(3) << "create global lru for core: " << core;
+    lru_fd = bpfAdapter_->createNamedBpfMap(
+        czKatranLbMaps::global_lru,
+        kBpfMapTypeLruHash,
+        sizeof(struct flow_key),
+        sizeof(uint32_t),
+        size,
+        flags,
+        numaNode
+    );
+    if(lru_fd < 0) {
+        LOG(ERROR) << "can not create global lru for core: " << core;
+        throw std::runtime_error(fmt::format(
+            "can not create global lru for core, error : {}",
+            folly::errnoStr(errno)
+        ));
+    }
+    VLOG(3) << "global lru for core: " << core << " created";
+    globalLruMapsFd_[core] = lru_fd;
+}
+
+
+void czKatranLb:: initLrus(//--------------------------√
+        bool flowDebug, 
+        bool globalLru)
+{
+    bool forwarding_cores_specified {false};
+    bool numa_mapping_specified {false};
+
+    if(forwardingCores_.size() != 0) {
+        if(numaNodes_.size() != 0) {
+            if(numaNodes_.size() != forwardingCores_.size()) {
+                throw std::runtime_error("numa nodes and forwarding cores are not equal");
+            }
+            numa_mapping_specified = true;
+        }
+        auto per_core_lru_size = config_.LruSize / forwardingCores_.size();
+        VLOG(2) << "per core lru size: " << per_core_lru_size;
+        for (int i = 0; i < forwardingCores_.size(); i++) {
+            auto core = forwardingCores_[i];
+            if((core > kMaxForwardingCores) || core < 0) {
+                LOG(FATAL) << "got core# " << core 
+                           << "whitch is not in [0, "
+                           << kMaxForwardingCores << "]";
+                throw std::runtime_error("unsuported number of forwarding cores");
+            }
+            int numa_node = kNoNuma;
+            int lru_map_falgs = 0;
+            if(numa_mapping_specified) {
+                numa_node = numaNodes_[i];
+                lru_map_falgs |= BPF_F_NUMA_NODE;
+            }
+            int lru_fd = 
+                createLruMap(per_core_lru_size, lru_map_falgs, numa_node, core);
+            if(lru_fd < 0) {
+                LOG(FATAL) << "can not create lru map for core: " << core;
+                throw std::runtime_error(fmt::format(
+                    "can not create lru map for core, error : {}",
+                    folly::errnoStr(errno)
+                ));
+            }
+            lruMapsFd_[core] = lru_fd; //收集
+            if(flowDebug) {
+                initFlowDebugMapForCore(
+                    core, 
+                    per_core_lru_size, 
+                    lru_map_falgs, 
+                    numa_node
+                );
+            }
+            if(globalLru) {
+                initGlobalLruMapForCore(
+                    core,
+                    per_core_lru_size,
+                    lru_map_falgs,
+                    numa_node
+                );
+            }
+        }
+        forwarding_cores_specified = true;
+    }
+
+    int lru_map_fd;
+    if(forwarding_cores_specified) {
+        //只有一个元素
+        //生产环境
+        lru_map_fd = lruMapsFd_[forwardingCores_[kFirstElem]];
+    } else {
+        //测试流程走到这
+        lru_map_fd = createLruMap();
+        if(lru_map_fd < 0) {
+            throw std::runtime_error(fmt::format(
+                "can not create lru map, error : {}",
+                folly::errnoStr(errno)
+            ));
+        }
+    }
+    int res = bpfAdapter_->setInnerMapProtoType(
+        czKatranLbMaps::lru_mapping, lru_map_fd
+    );
+
+    if(res < 0) {
+        throw std::runtime_error(fmt::format(
+            "can not set inner map proto type, error : {}",
+            folly::errnoStr(errno)
+        ));
+    }
+}
+//------------------------------------2025-2-16-------------------------------
 
 }

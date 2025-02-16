@@ -56,11 +56,43 @@ struct v6_lpm_key {
 
 //------------------------------------2025-2-15-------------------------------
 
+//------------------------------------2025-2-16-------------------------------
+struct flow_key {
+    union {
+        uint32_t src;
+        uint32_t srcv6[4];
+    };
+    union {
+        uint32_t dst;
+        uint32_t dstv6[4];
+    };
+    union {
+        uint32_t ports;
+        uint16_t port16[2];
+      };
+    uint8_t proto;
+};
 
+struct real_pos_lru {
+    uint32_t pos;
+    uint64_t atime;
+};
 
+struct flow_debug_info {
+    union {
+        uint32_t l4_hop;
+        uint32_t l4_hopv6[4];
+    };
+    union {
+        uint32_t this_hop;
+        uint32_t this_hopv6[4];
+    };
+};
 
+struct hc_mac {
+    uint8_t mac[6];
+};
 
-
-
+//------------------------------------2025-2-16-------------------------------
 
 }

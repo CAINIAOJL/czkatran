@@ -99,7 +99,7 @@ constexpr auto hc_pckt_macs = "hc_pckt_macs";
 constexpr auto hc_pckt_srcs_map = "hc_pckt_srcs_map";
 constexpr auto hc_reals_map = "hc_reals_map";
 constexpr auto hc_stats_map = "hc_stats_map";
-constexpr auto katran_lru = "katran_lru";
+constexpr auto czkatran_lru = "czkatran_lru";
 constexpr auto lpm_src_v4 = "lpm_src_v4";
 constexpr auto lru_mapping = "lru_mapping";
 constexpr auto lru_miss_stats = "lru_miss_stats";
@@ -261,7 +261,13 @@ class czKatranLb {
         const std::string getRealForFlow(const czkatranFlow& flow);
 //------------------------------------2025-2-15-------------------------------
 
-
+//------------------------------------2025-2-16-------------------------------
+        //加载bpf程序
+        void loadBpfProgs();
+        
+        int getczKatranProgFd() {
+                return bpfAdapter_->getProgFdByName(kBalancerProgName.toString());
+        }
 //--------------------------------------private---------------------------------
     private:
         //更新bpf-map
@@ -347,7 +353,62 @@ class czKatranLb {
                 ModifyAction action,
                 const folly::IPAddress& dst,
                 const uint32_t flags = 0);
+        
+//------------------------------------2025-2-16-------------------------------
 
+        bool initSimulator();
+        
+        int getHealthcheckerProgFd() {
+                return bpfAdapter_->getProgFdByName(kHealthcheckerProgName.toString());
+        }
+
+        void initLrus(
+                bool flowDebug = false, 
+                bool globalLru = false);
+        
+        int createLruMap(
+                int size = kFallbackLruSize,
+                int flags = kMapNoFlags,
+                int numaNode = kNoNuma,
+                int cpu = 0);
+
+        void initFlowDebugMapForCore(
+                int core, 
+                int size, 
+                int flags, 
+                int numaNode);
+
+        void initGlobalLruMapForCore(
+                int core, 
+                int size, 
+                int flags, 
+                int numaNode);
+
+        void initFlowDebugPrototypeMap();
+
+        void initGlobalLruPrototypeMap();
+
+        void initialSanityChecking(
+                bool flowDebug = false, 
+                bool globalLru = false);
+
+        void featureDiscovering();
+
+        void setupGueEnvironment();
+
+        void enableRecirculation();
+
+        void setupHcEnvironment();
+
+        void startIntrospectionRoutines();
+
+        void attachLrus(
+                bool flowDebug = false, 
+                bool globalLru = false);
+
+        void attachFlowDebugLru(int core);
+
+        void attachGlobalLru(int core);
 //------------------------------------2025-2-15-------------------------------
 
         // 配置信息
@@ -362,6 +423,11 @@ class czKatranLb {
          * 监控程序
          */
         std::shared_ptr<czkatranMonitor> monitor_ {nullptr};
+
+        /**
+         * 模拟器
+         */
+        std::unique_ptr<czkatranSimulator> simulator_;
 
 //----------------------------------other-----------------------------------
         /**
@@ -401,6 +467,21 @@ class czKatranLb {
          * 是否已经加载了 BPF 程序
          */
         bool progsAttached_;
+
+        /**
+         * 是否已经加载了 BPF 程序
+         */
+        bool progsLoaded_{false};
+
+        /**
+         * 是否加载了监控器
+         */
+        bool introspectionStarted_{false};
+
+        /**
+         * 全局lru的fallback map
+         */
+        int globalLruFallbackFd_{-1};
 //----------------------------------vector-------------------------------
         /**
          * 存储mac地址，ifindex信息的向量
@@ -429,7 +510,8 @@ class czKatranLb {
         /**
          * 全局 LRU maps 的文件描述符的向量
          */
-        std::vector<int> globalLruMapsFd;
+        std::vector<int> globalLruMapsFd_;
+
 
 //----------------------------------unorder_map-------------------------------
         //VipKey----------------->vip

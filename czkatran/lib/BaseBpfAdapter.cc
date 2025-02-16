@@ -6,7 +6,7 @@
 #include <folly/ScopeGuard.h>
 #include <glog/logging.h>
 #include <libmnl/libmnl.h>
-
+#include <folly/ScopeGuard.h>
 
 
 
@@ -324,5 +324,60 @@ int BaseBpfAdapter:: bpfUpdateMapBatch(//--------------------------√
     return 0;
 }
 //------------------------------------2025-2-14-------------------------------
+
+//------------------------------------2025-2-16-------------------------------
+bool BaseBpfAdapter:: isMapInBpfObject(//--------------------------√
+    const std::string& path,
+    const std::string& mapName)
+{
+    ::bpf_map* map;
+    auto obj = ::bpf_object__open(path.c_str());
+    if(obj == nullptr) {
+        LOG(ERROR) << "Failed to open bpf object " << path << " errno = " << folly::errnoStr(errno);
+        return false;
+    }
+    //捕获异常，退出obj
+    SCOPE_EXIT {
+        LOG(INFO) << "Closing bpf object";
+        ::bpf_object__close(obj);
+    };
+
+    //遍历obj的每个map
+    bpf_map__for_each(map, obj) {
+        if(mapName == bpf_map__name(map)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+int BaseBpfAdapter:: createNamedBpfMap(//--------------------------√
+    const std::string& name,
+    unsigned int type,
+    unsigned int key_size,
+    unsigned int value_size,
+    unsigned int max_entries,
+    unsigned int map_flags,
+    int numa_node)
+{
+    const char* name_ptr = !name.empty() ? name.c_str() : nullptr;
+    LIBBPF_OPTS(
+        bpf_map_create_opts, opts,
+        .map_flags = map_flags | (numa_node >= 0 ? BPF_F_NUMA_NODE : 0),
+        .numa_node = (__u32)numa_node
+    );
+    return bpf_map_create(
+        static_cast<enum bpf_map_type>(type),
+        name_ptr,
+        key_size,
+        value_size,
+        max_entries,
+        &opts);
+}
+
+
+
+
+//------------------------------------2025-2-16-------------------------------
 
 }
