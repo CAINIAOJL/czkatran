@@ -301,6 +301,21 @@ uint64_t BpfTester:: getGloballruRoutedPackets() {
     return globallru_stats.v2;
 }
 
+//------------------------------------2025-2-17/9-------------------------------
+void BpfTester::resetTestFixtures(const std::vector<czkatran::PacketAttributes>& data)//--------------------------√
+{
+    config_.testData = data;
+}
+
+void BpfTester:: testClsFromFixture(int progFd, std::vector<struct __sk_buff> ctxs_in)//--------------------------√
+{
+    std::vector<void*> ctxs;
+    for(auto& ctx : ctxs_in) {
+        ctxs.push_back(&ctx);
+    }
+    runBpfTesterFromFixture(progFd, kTcCode, ctxs, sizeof(struct __sk_buff));
+}
 
 
+//------------------------------------2025-2-17/9-------------------------------
 }

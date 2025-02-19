@@ -375,9 +375,126 @@ int BaseBpfAdapter:: createNamedBpfMap(//--------------------------√
         &opts);
 }
 
-
-
-
 //------------------------------------2025-2-16-------------------------------
+
+//------------------------------------2025-2-17/9-------------------------------
+
+int BaseBpfAdapter:: getBpfMapMaxSize(const std::string& name)//--------------------------√
+{
+    struct bpf_map_info info;
+    auto map_fd = getMapFdByName(name);
+    if(map_fd < 0) {
+        LOG(ERROR) << fmt::format(
+            "Failed to get map fd for map {} errno = {}",
+            name,
+            folly::errnoStr(errno)
+        );
+        return -1;
+    }
+    auto err = getBpfMapInfo(map_fd, &info);
+    if(err) {
+        LOG(ERROR) << fmt::format(
+            "can not get map info for map_fd {} errno = {}",
+            map_fd,
+            folly::errnoStr(errno)
+        );
+        return -1;
+    }
+    return info.max_entries;
+}
+
+int BaseBpfAdapter:: getBpfMapUsedSize(const std::string& name)//--------------------------√
+{
+    struct bpf_map_info info;
+    auto map_fd = getMapFdByName(name);
+    if(map_fd < 0) {
+        LOG(ERROR) << fmt::format(
+            "Failed to get map fd for map {}, error is {}",
+            name,
+            folly::errnoStr(errno)
+        );
+        return -1;
+    }
+    auto err = getBpfMapInfo(map_fd, &info);
+    if(err) {
+        LOG(ERROR) << fmt::format(
+            "can not get map info for map_fd {}, error is {}",
+            map_fd,
+            folly::errnoStr(errno)
+        );
+        return -1;
+    }
+
+    if(info.key_size > 1024 * 1024) {
+        LOG(ERROR) << fmt::format(
+            "map {} key_size is too large, key_size is {}",
+            name,
+            info.key_size
+        );
+        return -1;
+    }
+
+    unsigned char key[info.key_size];
+    void* pre_key = nullptr;
+    int max_entires = 0;
+    while((err = bpf_map_get_next_key(map_fd, pre_key, &key)) == 0) {
+        max_entires++;
+        pre_key = &key;
+    }
+    if(errno == ENOENT) {
+        VLOG(1) << fmt::format(
+            "map {} has {} entries",
+            name,
+            max_entires
+        );
+        return max_entires;
+    } else {
+        LOG(ERROR) << fmt::format(
+            "Failed to get next key for map {}, error is {}",
+            name,
+            folly::errnoStr(errno)
+        );
+        return -errno;   
+    }
+}
+
+int BaseBpfAdapter:: addClsActQD(const unsigned int ifindex)//--------------------------√
+{
+    auto msg = NetlinkMessage::QD(ifindex);
+    return NetlinkRoudtrip(msg);
+}
+
+int BaseBpfAdapter:: genericAttachBpfProgToTc(//--------------------------√
+    const int prog_fd,
+    const unsigned int ifindex,
+    const std::string& bpf_name,
+    uint32_t priority,
+    const int direction,
+    const uint32_t handle)
+
+{
+    int cmd = RTM_NEWTFILTER;
+    unsigned int flags = NLM_F_EXCL | NLM_F_CREATE;
+
+    auto rc = modifyTcBpfFilter(
+        cmd, flags, priority, prog_fd, ifindex, bpf_name, direction, handle
+    );
+    return rc;
+}
+
+int BaseBpfAdapter:: addTcBpfFilter(//--------------------------√
+    const int prog_fd,
+    const unsigned int ifindex,
+    const std::string& bpf_name,
+    const uint32_t priority,
+    const int direction,
+    const uint32_t handle)
+{
+    addClsActQD(ifindex);
+    return genericAttachBpfProgToTc(
+        prog_fd, ifindex, bpf_name, priority, direction, handle
+    );
+}
+//------------------------------------2025-2-17/9-------------------------------
 
 }

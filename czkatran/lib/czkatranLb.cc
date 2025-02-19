@@ -15,6 +15,11 @@
 #include "IpHelpers.h"
 
 namespace czkatran {
+namespace {
+    constexpr int kMaxInvalidServerIds = 10000;
+}
+
+
 
 czKatranLb::czKatranLb(const czKatranConfig& config,
                             std::unique_ptr<BaseBpfAdapter>&& bpfAdapter):
@@ -1845,4 +1850,475 @@ void czKatranLb:: initLrus(//--------------------------√
 }
 //------------------------------------2025-2-16-------------------------------
 
+//------------------------------------2025-2-17/9-------------------------------
+czkatranBpfMapStats czKatranLb:: getBpfMapStats(const std::string& map)//--------------------------√
+{
+    czkatranBpfMapStats stats;
+    auto res = bpfAdapter_->getBpfMapMaxSize(map);
+    if(res < 0) {
+        throw std::runtime_error(fmt::format(
+            "can not get bpf map:{} max size, error : {}",
+            map,
+            folly::errnoStr(errno)
+        ));
+    } else {
+        stats.maxEntries = res;
+    }
+    res = bpfAdapter_->getBpfMapUsedSize(map);
+    if(res < 0) {
+        throw std::runtime_error(fmt::format(
+            "can not get bpf map:{} used size, error : {}",
+            map,
+            folly::errnoStr(errno)
+        ));
+    } else {
+        stats.currentEntries = res;
+    }
+    return stats;
+}
+
+lb_stats czKatranLb:: getStatsForVip(const VipKey& vip)//--------------------------√
+{
+    auto vip_iter = vips_.find(vip);
+    if(vip_iter == vips_.end()) {
+        LOG(INFO) << fmt::format(
+            "vip: address {} port {} proto {} not found",
+            vip.address,
+            vip.port,
+            vip.proto
+        );
+    }
+    auto num = vip_iter->second.getVipNum();
+    return getLbStats(num);
+}
+
+lb_stats czKatranLb:: getLruStats()//--------------------------√
+{
+    return getLbStats(config_.maxVips + kLruCntrOffset);
+}
+
+lb_stats czKatranLb:: getLruMissStats()//--------------------------√
+{
+    return getLbStats(config_.maxVips + kLruMissOffset);
+}
+
+lb_stats czKatranLb:: getLruFallbackStats()//--------------------------√
+{
+    return getLbStats(config_.maxVips + kLruFallbackOffset);
+}
+
+lb_stats czKatranLb:: getIcmpTooBigStats()//--------------------------√
+{
+    return getLbStats(config_.maxVips + kIcmpTooBigOffset);
+}
+
+lb_stats czKatranLb:: getInlineDecapStats()//--------------------------√
+{
+    return getLbStats(config_.maxVips + kInlineDecapOffset);
+}
+
+lb_stats czKatranLb:: getSrcRoutingStats()//--------------------------√
+{
+    return getLbStats(config_.maxVips + kLpmSrcOffset);
+}
+
+lb_tpr_packets_stats czKatranLb:: getTcpServerIdRoutingStats()//--------------------------√
+{
+    unsigned int nr_cpus = BpfAdapter::getPossibleCpus();
+    if(nr_cpus < 0) {
+        LOG(ERROR) << fmt::format(
+            "can not get number of cpus, error : {}",
+            folly::errnoStr(errno)
+        );
+    }
+    lb_tpr_packets_stats stats[nr_cpus];
+    lb_tpr_packets_stats sum = {};
+    if(!config_.testing) {
+        int position = 0;
+        auto res = bpfAdapter_->bpfMapLookUpElement(
+            bpfAdapter_->getMapFdByName("tpr_stats_map"),
+            &position,
+            stats
+        );
+        if(!res) {
+            for(auto& s : stats) {
+                sum.ch_routed += s.ch_routed;
+                sum.dst_mismatch_in_lru += s.dst_mismatch_in_lru;
+                sum.sid_routed += s.sid_routed;
+                sum.tcp_syn += s.tcp_syn;
+            }
+        } else {
+            LOG(ERROR) << fmt::format(
+                "can not get tpr stats, error : {}",
+                folly::errnoStr(errno)
+            );
+            lbStats_.bpfFailedCalls++;
+        }
+    }
+    return sum;
+}
+
+lb_quic_packets_stats czKatranLb:: getLbQuicPacketsStats()//--------------------------√
+{
+    unsigned int nr_cpus = BpfAdapter::getPossibleCpus();
+    if(nr_cpus < 0) {
+        LOG(ERROR) << fmt::format(
+            "can not get number of cpus, error : {}",
+            folly::errnoStr(errno)
+        );
+    }
+    lb_quic_packets_stats stats[nr_cpus];
+    lb_quic_packets_stats sum = {};
+
+    if(!config_.testing) {
+        int position = 0;
+        auto res = bpfAdapter_->bpfMapLookUpElement(
+            bpfAdapter_->getMapFdByName("quic_stats_map"),
+            &position,
+            stats
+        );
+        if(!res) {
+            for(auto s : stats) {
+                sum.ch_routed += s.ch_routed;
+                sum.cid_initial += s.cid_initial;
+                sum.cid_invalid_server_id += s.cid_invalid_server_id;
+                if(s.cid_invalid_server_id_sample && 
+                    (invalidServerIds_.find(s.cid_invalid_server_id_sample) == invalidServerIds_.end()) &&
+                    invalidServerIds_.size() < kMaxInvalidServerIds)
+                {
+                    LOG(ERROR) << fmt::format(
+                        "Invalid server id : {}, in quic packet",
+                        s.cid_invalid_server_id_sample
+                    );
+                    invalidServerIds_.insert(s.cid_invalid_server_id_sample);
+                    if(invalidServerIds_.size() == kMaxInvalidServerIds) {
+                        LOG(ERROR) << fmt::format(
+                            "Too many invalid server ids, drop the rest"
+                        );
+                    }
+                }
+                sum.cid_routed += s.cid_routed;
+                sum.cid_unknown_real_dropped += s.cid_unknown_real_dropped;
+                sum.cid_v0 += s.cid_v0;
+                sum.cid_v1 += s.cid_v1;
+                sum.cid_v2 += s.cid_v2;
+                sum.cid_v3 += s.cid_v3;
+                sum.dst_match_in_lru += s.dst_match_in_lru;
+                sum.dst_mismatch_in_lru += s.dst_mismatch_in_lru;
+                sum.dst_not_found_in_lru += s.dst_not_found_in_lru;
+            }
+        } else {
+            LOG(ERROR) << fmt::format(
+                "can not get quic stats, error : {}",
+                folly::errnoStr(errno)
+            );
+            lbStats_.bpfFailedCalls++;
+        }
+    }
+    return sum;
+}
+
+int64_t czKatranLb:: getIndexForReal(const std::string& real)//--------------------------√
+{
+    if(validateAddress(real) != AddressType::INVALID) {
+        folly::IPAddress raddr(raddr);
+        auto real_iter = reals_.find(raddr);
+        if(real_iter != reals_.end()) {
+            return real_iter->second.num; //后端服务器ip对应的hash节点值
+        }
+    }
+    return kError;
+}
+
+lb_stats czKatranLb:: getRealStats(uint32_t index)//--------------------------√
+{
+    return getLbStats(index, "reals_stats");
+}
+
+bool czKatranLb:: stopKatranMonitor()//--------------------------√
+{
+    if(!monitor_) {
+        return false;
+    }
+    if(!changeKatranMonitorForwardingState(czkatranMonitorState::DISABLED)) {
+        return false;
+    }
+    monitor_->stopMonitor();
+    return true;
+}
+
+std::unique_ptr<folly::IOBuf> czKatranLb:: getczKatranMonitorEventBuffer(//--------------------------√
+    monitoring::EventId event)
+{
+    if(!monitor_) {
+        return nullptr;
+    }
+    return monitor_->getEventBuffer(event);
+}
+
+czkatranMonitorStats czKatranLb:: getKatranMonitorStats()//--------------------------√
+{
+    struct czkatranMonitorStats stats;
+    if(!monitor_) {
+        return stats;
+    }
+    auto writer_stats = monitor_->getPcapWriterStats();
+    stats.amount = writer_stats.amount;
+    stats.limit = writer_stats.limit;
+    stats.bufferFull = writer_stats.bufferfull;
+    return stats;
+}
+
+lb_stable_rt_packet_stats czKatranLb:: getUdpStableRoutingStats()//--------------------------√
+{
+    unsigned int nr_cpus = BpfAdapter::getPossibleCpus();
+    if(nr_cpus < 0) {
+        LOG(ERROR) << fmt::format(
+            "can not get number of cpus, error : {}",
+            folly::errnoStr(errno)
+        );
+    }
+    lb_stable_rt_packet_stats stats[nr_cpus];
+    lb_stable_rt_packet_stats sum = {};
+    
+    if(!config_.testing) {
+        int position = 0;
+        auto res = bpfAdapter_->bpfMapLookUpElement(
+            bpfAdapter_->getMapFdByName("stable_rt_stats"),
+            &position,
+            stats
+        );
+        if(!res) {
+            sum.ch_routed += stats->ch_routed;
+            sum.cid_invalid_server_id += stats->cid_invalid_server_id;
+            sum.cid_routed += stats->cid_routed;
+            sum.cid_unknown_real_dropped += stats->cid_unknown_real_dropped;
+        } else {
+            LOG(ERROR) << fmt::format(
+                "can not get stable rt stats, error : {}",
+                folly::errnoStr(errno)
+            );
+            lbStats_.bpfFailedCalls++;
+        }
+    }
+    return sum;
+}
+
+bool czKatranLb:: hasFeature(czkatranFeatureEnum feature)//--------------------------√
+{
+    switch(feature) {
+        case czkatranFeatureEnum::LocalDeliveryOptimization :
+            return features_.localDeliveryOptimization;
+        case czkatranFeatureEnum::SrcRouting :
+            return features_.srcRouting;
+        case czkatranFeatureEnum::InlineDecap :
+            return features_.inlineDecap;
+        case czkatranFeatureEnum::GueEncap :
+            return features_.gueEncap;
+        case czkatranFeatureEnum::Introspection :
+            return features_.introspection;
+        case czkatranFeatureEnum::FlowDebug :
+            return features_.flowDebug;
+        case czkatranFeatureEnum::DirectHealthchecking :
+            return features_.directHealthchecking;
+    }
+    folly::assume_unreachable();
+}
+
+std::string czKatranLb:: toString(czkatranFeatureEnum feature) {//--------------------------√
+    switch (feature)
+    {
+    case czkatranFeatureEnum::SrcRouting :
+        return "SrcRouting";
+        break;
+    case czkatranFeatureEnum::InlineDecap :
+        return "InlineDecap";
+        break;
+    case czkatranFeatureEnum::Introspection :
+        return "Introspection";
+        break;
+    case czkatranFeatureEnum::GueEncap :
+        return "GueEncap";
+        break;
+    case czkatranFeatureEnum::LocalDeliveryOptimization :
+        return "LocalDeliveryOptimization";
+        break;
+    case czkatranFeatureEnum::FlowDebug :
+        return "FlowDebug";
+        break;
+    case czkatranFeatureEnum::DirectHealthchecking : 
+        return "DirectHealthchecking";
+        break;
+    default:
+        return "UNKNOWN";
+        break;
+    }
+    folly::assume_unreachable();
+}
+
+bool czKatranLb:: reloadBalancerProg(//--------------------------√
+    const std::string& path,
+    std::optional<czKatranConfig> config)
+{
+    auto res = bpfAdapter_->reloadBpfProg(path);
+    if(res) {
+        return false;
+    }
+    if(config.has_value()) {
+        config_ = *config;
+    }
+
+    config_.balancerProgPath = path;
+    bool flowDebugInProg = 
+        bpfAdapter_->isMapInBpfObject(path, czKatranLbMaps::flow_debug_maps);
+
+    bool globalLruInProg = 
+        bpfAdapter_->isMapInBpfObject(path, czKatranLbMaps::global_lru_maps);
+
+    initialSanityChecking(flowDebugInProg, globalLruInProg);
+    featureDiscovering();
+
+    if(features_.gueEncap) {
+        setupGueEnvironment();
+    }
+
+    if(features_.inlineDecap) {
+        enableRecirculation();
+    }
+
+    if(features_.introspection && !introspectionStarted_) {
+        startIntrospectionRoutines();
+        introspectionStarted_ = true;
+    }
+    progsReloaded_ = true;
+    return true;
+}
+
+void czKatranLb:: attachBpfProgs()//--------------------------√
+{
+    if(!progsLoaded_) {
+        throw std::invalid_argument("can not attach bpf progs before loading them");
+    }
+    int res;
+    auto main_fd = bpfAdapter_->getProgFdByName(KBalancerProgName.toString());
+    auto interface_index = ctlValues_[kMainIntfPos].ifindex;
+    if(standalone_) {
+        res = bpfAdapter_->modifyXdpProg(main_fd, interface_index, config_.xdpAttachFlags);
+        if(res != 0) {
+            throw std::invalid_argument(fmt::format(
+                "can not attach main xdp prog, error : {}",
+                folly::errnoStr(errno)
+            ));
+        }
+    } else if(config_.useRootMap) {
+        rootMapFd_ = bpfAdapter_->getPinnedBpfObject(config_.rootMapPath);
+        if(rootMapFd_ < 0) {
+            throw std::invalid_argument(fmt::format(
+                "can not get root map fd, error : {}",
+                folly::errnoStr(errno)
+            ));
+        }
+        res = bpfAdapter_->bpfUpdateMap(rootMapFd_, &config_.rootMapPos, &main_fd);
+        if(res) {
+            throw std::invalid_argument(fmt::format(
+                "can not update root map, error : {}",
+                folly::errnoStr(errno)
+            ));
+        }
+    }
+    if(config_.enableHc && !progsReloaded_) {
+        auto hc_fd = getHealthcheckerProgFd();
+        res = bpfAdapter_->addTcBpfFilter(
+            hc_fd,
+            ctlValues_[kHcIntfPos].ifindex,
+            "katran-healthchecker",
+            config_.priority,
+            TC_EGRESS
+        );
+        if(res != 0) {
+            if(standalone_) {
+                bpfAdapter_->detachXdpProgram(interface_index, config_.xdpAttachFlags);
+            } else {
+                bpfAdapter_->bpfMapDeleteElement(rootMapFd_, &config_.rootMapPos);
+            }
+            throw std::invalid_argument(fmt::format(
+                "can not attach healthchecker prog, error : {}",
+                folly::errnoStr(errno)
+            ));
+        }
+    }
+    progsAttached_ = true;
+}
+
+bool czKatranLb:: installFeature(//--------------------------√
+    czkatranFeatureEnum feature,
+    const std::string& prog_path)
+{
+    if(hasFeature(feature)) {
+        LOG(INFO) << fmt::format(
+            "feature {} already installed",
+            toString(feature)
+        );
+        return true;
+    }
+    if(prog_path.empty()) {
+        LOG(ERROR) << "can not install feature: empty prog path";
+        return false;
+    }
+    auto original_balancer_prog = config_.balancerProgPath;
+    if(!reloadBalancerProg(prog_path)) {
+        LOG(ERROR) << fmt::format(
+            "can not reload balancer prog with feature {}",
+            toString(feature)
+        );
+        if(!reloadBalancerProg(original_balancer_prog)) {
+            LOG(ERROR) << fmt::format(
+                "can not reload original balancer prog after failed reload with feature {}",
+                toString(feature)
+            );
+            return false;
+        }
+    }
+    if(!config_.testing) {
+        attachBpfProgs();
+    }
+    return hasFeature(feature);
+}
+
+bool czKatranLb:: removeFeature(//--------------------------√
+    czkatranFeatureEnum feature,
+    const std::string& prog_path)
+
+{
+    if(!hasFeature(feature)) {
+        return true;
+    }
+    if(prog_path.empty()) {
+        LOG(ERROR) << fmt::format(
+            "can not remove feature {} with empty prog path",
+            toString(feature)
+        );
+        return false;
+    }
+    auto original_balancer_prog = config_.balancerProgPath;
+    if(!reloadBalancerProg(prog_path)) {
+        LOG(ERROR) << fmt::format(
+            "can not reload balancer prog with feature {}",
+            toString(feature)
+        );
+        if(!reloadBalancerProg(original_balancer_prog)) {
+            LOG(ERROR) << fmt::format(
+                "can not reload original balancer prog after failed reload with feature {}",
+                toString(feature)
+            );
+            return false;
+        }
+    }
+    if(!config_.testing) {
+        attachBpfProgs();
+    }
+    return !hasFeature(feature);
+}
+
+//------------------------------------2025-2-17/9-------------------------------
 }

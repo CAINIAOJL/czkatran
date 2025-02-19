@@ -290,7 +290,34 @@ class BaseBpfAdapter {
             unsigned int max_entries,
             unsigned int map_flags,
             int numa_node = -1);
-        
+
+        static int addTcBpfFilter(
+            const int prog_fd,
+            const unsigned int ifindex,
+            const std::string& bpf_name,
+            const uint32_t priority,
+            const int direction = TC_INGRESS,
+            const uint32_t handle = 0);
+
+        static int addClsActQD(const unsigned int ifindex);
+
+        static int genericAttachBpfProgToTc(
+            const int prog_fd,
+            const unsigned int ifindex,
+            const std::string& bpf_name,
+            uint32_t priority,
+            const int direction = TC_INGRESS,
+            const uint32_t handle = 0);
+
+//------------------------------------2025-2-17-------------------------------
+
+        virtual int getBpfMapMaxSize(const std::string& name);
+
+        virtual int getBpfMapUsedSize(const std::string& name);
+
+//------------------------------------2025-2-17/9-------------------------------
+
+
 //------------------------------------2025-2-16-------------------------------
 
 //------------------------------------2025-2-14-------------------------------

@@ -268,6 +268,63 @@ class czKatranLb {
         int getczKatranProgFd() {
                 return bpfAdapter_->getProgFdByName(kBalancerProgName.toString());
         }
+
+//------------------------------------2025-2-17/9-------------------------------
+        czkatranBpfMapStats getBpfMapStats(const std::string& map);
+
+        lb_stats getStatsForVip(const VipKey& vip);
+
+        lb_stats getLruStats();
+
+        lb_stats getLruMissStats(); 
+
+        lb_stats getLruFallbackStats(); 
+
+        lb_stats getIcmpTooBigStats();
+
+        lb_stats getInlineDecapStats();
+
+        lb_tpr_packets_stats getTcpServerIdRoutingStats();
+
+        lb_quic_packets_stats getLbQuicPacketsStats();
+
+        czkatranMonitorStats getKatranMonitorStats();
+
+        int64_t getIndexForReal(const std::string& real);
+
+        lb_stats getRealStats(uint32_t index);
+
+        lb_stats getSrcRoutingStats();
+        czKatranLbStats  getczKatranLbStats() {
+                return lbStats_;
+        }
+
+        bool stopKatranMonitor();
+
+        std::unique_ptr<folly::IOBuf> getczKatranMonitorEventBuffer(
+                monitoring::EventId event);
+
+        lb_stable_rt_packet_stats getUdpStableRoutingStats();
+
+        bool hasFeature(czkatranFeatureEnum feature);
+
+        bool installFeature(
+                czkatranFeatureEnum feature,
+                const std::string& prog_path = "");
+        
+        std::string toString(czkatranFeatureEnum feature);
+
+        bool reloadBalancerProg(
+                const std::string& path,
+                std::optional<czKatranConfig> config = std::nullopt);
+        
+        void attachBpfProgs();
+
+        bool removeFeature(
+                czkatranFeatureEnum feature,
+                const std::string& prog_path = "");
+//------------------------------------2025-2-17/9-------------------------------
+
 //--------------------------------------private---------------------------------
     private:
         //更新bpf-map
@@ -482,6 +539,11 @@ class czKatranLb {
          * 全局lru的fallback map
          */
         int globalLruFallbackFd_{-1};
+
+        /**
+         * 是否已经加载了bpf程序
+         */
+        bool progsReloaded_{false};
 //----------------------------------vector-------------------------------
         /**
          * 存储mac地址，ifindex信息的向量
@@ -524,6 +586,8 @@ class czKatranLb {
         std::unordered_map<folly::CIDRNetwork, uint32_t> lpmSrcMapping_;
 
         std::unordered_set<folly::IPAddress> decapDsts_;
+
+        std::unordered_set<uint64_t> invalidServerIds_;
 };
 
 

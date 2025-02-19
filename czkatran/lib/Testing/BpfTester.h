@@ -74,10 +74,11 @@ class BpfTester {
         void writePcapOutput(std::unique_ptr<folly::IOBuf>&& buf);
 
 
+//------------------------------------2025-2-17-------------------------------
+        void resetTestFixtures(const std::vector<czkatran::PacketAttributes>& data);
 
-
-
-
+        void testClsFromFixture(int progFd, std::vector<struct __sk_buff> ctxs_in);
+//------------------------------------2025-2-17-------------------------------
         private:
             bool runBpfTesterFromFixture(int prog_fd,
                                          std::unordered_map<int, std::string>& retvalTranslation,

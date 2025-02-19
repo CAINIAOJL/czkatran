@@ -95,4 +95,37 @@ struct hc_mac {
 
 //------------------------------------2025-2-16-------------------------------
 
+//------------------------------------2025-2-17/9-------------------------------
+struct lb_tpr_packets_stats {
+    uint64_t ch_routed;
+    uint64_t dst_mismatch_in_lru;
+    uint64_t sid_routed;
+    uint64_t tcp_syn;
+};
+
+struct lb_stable_rt_packet_stats {
+    uint64_t ch_routed;
+    uint64_t cid_routed;
+    uint64_t cid_invalid_server_id;
+    uint64_t cid_unknown_real_dropped;
+    uint64_t invalid_packet_type;
+};
+
+struct lb_quic_packets_stats {
+    uint64_t ch_routed;
+    uint64_t cid_initial;
+    uint64_t cid_invalid_server_id;
+    uint64_t cid_invalid_server_id_sample;
+    uint64_t cid_routed;
+    uint64_t cid_unknown_real_dropped;
+    uint64_t cid_v0;
+    uint64_t cid_v1;
+    uint64_t cid_v2;
+    uint64_t cid_v3;
+    uint64_t dst_match_in_lru;
+    uint64_t dst_mismatch_in_lru;
+    uint64_t dst_not_found_in_lru;
+};
+
+//------------------------------------2025-2-17/9-------------------------------
 }
