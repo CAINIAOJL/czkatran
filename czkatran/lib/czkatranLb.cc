@@ -637,7 +637,7 @@ bool czKatranLb:: updateVipMap(//--------------------------√
     return true;
 }
 
-bool czKatranLb:: addVip(const VipKey& vip, const uint32_t flags = 0)//--------------------------√
+bool czKatranLb:: addVip(const VipKey& vip, const uint32_t flags)//--------------------------√
 {
     if(validateAddress(vip.address) == AddressType::INVALID) {
         LOG(ERROR) << "Invalid vip's address " << vip.address;
@@ -1382,7 +1382,7 @@ void czKatranLb:: setupHcEnvironment()//--------------------------√
         if(res < 0) {
             throw std::runtime_error(fmt::format(
                 "can not update srcV4: {} in hc_pckt_srcs_map, error is {}",
-                srcV4,
+                config_.katranSrcV4,
                 folly::errnoStr(errno)
             ));
         } else {
@@ -1407,7 +1407,7 @@ void czKatranLb:: setupHcEnvironment()//--------------------------√
         if(res < 0) {
             throw std::runtime_error(fmt::format(
                 "can not update srcV6: {} in hc_pckt_srcs_map, error is {}",
-                srcV6,
+                config_.katranSrcV6,
                 folly::errnoStr(errno)
             ));
         } else {
@@ -1423,8 +1423,13 @@ void czKatranLb:: setupHcEnvironment()//--------------------------√
     std::array<struct hc_mac, 2> macs;
     if(config_.localMac.size() != 6) {
         throw std::invalid_argument(fmt::format(
-            "src mac's size is not equal to 6 bytes, src mac is {}",
-            config_.localMac
+            "src mac's size is not equal to 6 bytes, src mac is {} {} {} {} {} {}",
+            config_.localMac[0],
+            config_.localMac[1],
+            config_.localMac[2],
+            config_.localMac[3],
+            config_.localMac[4],
+            config_.localMac[5]
         ));
     }
 
@@ -1566,10 +1571,10 @@ void czKatranLb:: loadBpfProgs()//--------------------------√
     int res;
     bool flowDebugInProg = false;
     bool globalLruInProg = false;
-    flowDebugInProg = bpfAdapter_->isMapInBpfObject(
-        config_.balancerProgPath,
-        czKatranLbMaps::flow_debug_maps
-    );
+    //flowDebugInProg = bpfAdapter_->isMapInBpfObject(
+        //config_.balancerProgPath,
+        //czKatranLbMaps::flow_debug_maps
+    //);
     globalLruInProg = bpfAdapter_->isMapInBpfObject(
         config_.balancerProgPath,
         czKatranLbMaps::global_lru_maps

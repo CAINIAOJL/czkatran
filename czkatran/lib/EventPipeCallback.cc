@@ -2,7 +2,7 @@
 #include <fmt/core.h>
 #include <folly/Utility.h>
 #include <stdint.h>
-#include "czkatran/lib/PcapStructs.h"
+#include "PcapStructs.h"
 
 namespace czkatran {
 namespace monitoring {

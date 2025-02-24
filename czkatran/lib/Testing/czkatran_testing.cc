@@ -11,16 +11,27 @@
 #include <folly/Range.h>
 #include <gflags/gflags.h>
 
-#include "MonitoringStructs.h"
-#include "czkatranLbStructs.h"
-#include "BpfTester.h"
+#include "/home/jianglei/czkatran/czkatran/lib/MonitoringStructs.h"
+#include "/home/jianglei/czkatran/czkatran/lib/czkatranLbStructs.h"
+#include "/home/jianglei/czkatran/czkatran/lib/Testing/BpfTester.h"
 
-#include "czkatranGueOptionalTestFixtures.h"
-#include "czkatranHCTestFixtures.h"
-#include "czkatranOptionalTestFixtures.h"
-#include "czkatranTestProvision.h"
-#include "czkatranTestUtil.h"
-#include "czkatranUdpStableRtTestFixtures.h"
+//#include "/home/cainiao/czkatran/czkatran/lib/MonitoringStructs.h"
+//#include "/home/cainiao/czkatran/czkatran/lib/czkatranLbStructs.h"
+//#include "/home/cainiao/czkatran/czkatran/lib/Testing/BpfTester.h"
+
+#include "/home/jianglei/czkatran/czkatran/lib/Testing/TestData/czkatranGueOptionalTestFixtures.h"
+#include "/home/jianglei/czkatran/czkatran/lib/Testing/TestData/czkatranHCTestFixtures.h"
+#include "/home/jianglei/czkatran/czkatran/lib/Testing/TestData/czkatranOptionalTestFixtures.h"
+#include "/home/jianglei/czkatran/czkatran/lib/Testing/czkatranTestProvision.h"
+#include "/home/jianglei/czkatran/czkatran/lib/Testing/czkatranTestUtil.h"
+#include "/home/jianglei/czkatran/czkatran/lib/Testing/TestData/czkatranUdpStableRtTestFixtures.h"
+
+//#include "/home/cainiao/czkatran/czkatran/lib/Testing/TestData/czkatranGueOptionalTestFixtures.h"
+//#include "/home/cainiao/czkatran/czkatran/lib/Testing/TestData/czkatranHCTestFixtures.h"
+//#include "/home/cainiao/czkatran/czkatran/lib/Testing/TestData/czkatranOptionalTestFixtures.h"
+//#include "/home/cainiao/czkatran/czkatran/lib/Testing/czkatranTestProvision.h"
+//#include "/home/cainiao/czkatran/czkatran/lib/Testing/czkatranTestUtil.h"
+//#include "/home/cainiao/czkatran/czkatran/lib/Testing/TestData/czkatranUdpStableRtTestFixtures.h"
 
 using namespace czkatran::testing;
 using czkatranFeatureEnum = czkatran::czkatranFeatureEnum;
@@ -536,7 +547,7 @@ int main(int argc, char** argv) {
         kV6TunInterface,
         FLAGS_balancer_prog,
         FLAGS_healthchecking_prog,
-        kDefaultMac,
+        kDefalutMac,
         kDefaultPriority,
         kNoExternalMap,
         kDefaultKatranPos
@@ -546,7 +557,7 @@ int main(int argc, char** argv) {
     kconfig.monitorConfig = czkmconfig;
     kconfig.katranSrcV4 = "10.0.13.37";
     kconfig.katranSrcV6 = "fc00:2307::1337";
-    kconfig.localMac = kLocalMac;
+    kconfig.localMac = KLocalMac;
     kconfig.maxVips = MAX_VIPS;
 
     auto lb = std::make_unique<czkatran::czKatranLb>

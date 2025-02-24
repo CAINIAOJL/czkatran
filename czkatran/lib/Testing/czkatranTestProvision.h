@@ -3,10 +3,14 @@
 //--------------------------√
 #include <string>
 #include <vector>
-#include "czkatranLb.h"
-#include "czkatranLbStructs.h"
-#include "PacketAttributes.h"
+#include "/home/jianglei/czkatran/czkatran/lib/czkatranLb.h"
+#include "/home/jianglei/czkatran/czkatran/lib/czkatranLbStructs.h"
+#include "/home/jianglei/czkatran/czkatran/lib/Testing/PacketAttributes.h"
 
+
+//#include "/home/cainiao/czkatran/czkatran/lib/czkatranLb.h"
+//#include "/home/cainiao/czkatran/czkatran/lib/czkatranLbStructs.h"
+//#include "/home/cainiao/czkatran/czkatran/lib/Testing/PacketAttributes.h"
 
 namespace czkatran {
 namespace testing {
@@ -14,8 +18,8 @@ namespace testing {
     extern const std::string kV4TunInterface;
     extern const std::string kV6TunInterface;
     extern const std::string kNoExternalMap;
-    extern const std::vector<uint8_t> kDefaultMac;
-    extern const std::vector<uint8_t> kLocalMac;
+    extern const std::vector<uint8_t> kDefalutMac;
+    extern const std::vector<uint8_t> KLocalMac;
     constexpr uint32_t kDefaultPriority = 2307;
     constexpr uint32_t kDefaultKatranPos = 8;
     constexpr uint32_t kMonitorLimit = 1024;

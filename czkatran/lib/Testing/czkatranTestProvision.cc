@@ -1,6 +1,7 @@
 //------------------------------------2025-2-14-------------------------------
 //--------------------------√
-#include "czkatranTestProvision.h"
+#include "/home/jianglei/czkatran/czkatran/lib/Testing/czkatranTestProvision.h"
+//#include "/home/cainiao/czkatran/czkatran/lib/Testing/czkatranTestProvision.h"
 #include <glog/logging.h>
 #include <map>
 namespace czkatran {
@@ -331,7 +332,7 @@ uint64_t czkatranTestParam:: expectedTotalBytesForVip(
     return perVipCounters[vip].second;
 }
 
-uint64_t czkatranTestParam:: _lookup_counter(czkatranTestCounters counter) { //--------------------------√
+uint64_t czkatranTestParam:: _lookup_counter(czkatranTestCounters counter) noexcept { //--------------------------√
     if(expectedCounters.count(counter) == 0) {
         LOG(WARNING) << "expectedCounters does not contain counter: " << int(counter);
         return 0;

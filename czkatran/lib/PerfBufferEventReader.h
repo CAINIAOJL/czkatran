@@ -28,7 +28,7 @@ class PerfBufferEventReader {
          */
         virtual void handlePerfBufferEvent(int cpu, const char* data, size_t size) noexcept = 0;
 
-        virtual void handlePerfBufferLoss(int cpu, uint64_t losscount) {}
+        virtual void handlePerfBufferLoss(int cpu, uint64_t losscount) noexcept {}
 
 
     private:

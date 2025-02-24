@@ -7,8 +7,8 @@
 #include <folly/Synchronized.h>
 #include <folly/io/async/AsyncSocketException.h>
 
-#include "czkatran/lib/czkatranLbStructs.h"
-#include "czkatran/lib/MonitoringStructs.h"
+#include "czkatranLbStructs.h"
+#include "MonitoringStructs.h"
 
 namespace czkatran {
 namespace monitoring {

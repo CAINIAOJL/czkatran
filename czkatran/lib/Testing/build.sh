@@ -1,0 +1,70 @@
+g++ -Wall -g -std=c++17 -o xdp-testing \
+    /home/jianglei/czkatran/czkatran/lib/Testing/czkatran_testing.cc\
+    /home/jianglei/czkatran/czkatran/lib/Testing/czkatranTestProvision.cc\
+    /home/jianglei/czkatran/czkatran/lib/Testing/czkatranTestUtil.cc\
+    /home/jianglei/czkatran/czkatran/lib/BaseBpfAdapter.cc\
+    /home/jianglei/czkatran/czkatran/lib/BpfAdapter.cc\
+    /home/jianglei/czkatran/czkatran/lib/Testing/Base64Helpers.cc\
+    /home/jianglei/czkatran/czkatran/lib/Vip.cc\
+    /home/jianglei/czkatran/czkatran/lib/czkatranSimulator.cc\
+    /home/jianglei/czkatran/czkatran/lib/MaglevBase.cc\
+    /home/jianglei/czkatran/czkatran/lib/FileWriter.cc\
+    /home/jianglei/czkatran/czkatran/lib/IOBuffWriter.cc\
+    /home/jianglei/czkatran/czkatran/lib/IpHelpers.cc\
+    /home/jianglei/czkatran/czkatran/lib/MacHelpers.cc\
+    /home/jianglei/czkatran/czkatran/lib/PerfBufferEventReader.cc\
+    /home/jianglei/czkatran/czkatran/lib/czKatranEventReader.cc\
+    /home/jianglei/czkatran/czkatran/lib/EventPipeCallback.cc\
+    /home/jianglei/czkatran/czkatran/lib/MonitoringServiceCore.cc\
+    /home/jianglei/czkatran/czkatran/lib/BpfLoader2.cc\
+    /home/jianglei/czkatran/czkatran/lib/CHHelper.cc\
+    /home/jianglei/czkatran/czkatran/lib/czKatanMonitor.cc\
+    /home/jianglei/czkatran/czkatran/lib/czkatranLb.cc\
+    /home/jianglei/czkatran/czkatran/lib/MaglevHash.cc\
+    /home/jianglei/czkatran/czkatran/lib/MaglevHashV2.cc\
+    /home/jianglei/czkatran/czkatran/lib/MurmurHash3.cc\
+    /home/jianglei/czkatran/czkatran/lib/Netlink.cc\
+    /home/jianglei/czkatran/czkatran/lib/MonitoringStructs.cc\
+    /home/jianglei/czkatran/czkatran/lib/Testing/BpfTester.cc\
+    /home/jianglei/czkatran/czkatran/lib/Testing/PcapParser.cc\
+    /home/jianglei/czkatran/czkatran/lib/PipeWriter.cc\
+    /home/jianglei/czkatran/czkatran/lib/PcapWriter.cc\
+    /home/jianglei/czkatran/czkatran/lib/PcapMsgMeta.cc\
+    /home/jianglei/czkatran/czkatran/lib/PcapMsg.cc\
+    -lgflags -lpthread -lfolly -lglog -lfmt -lbpf -lmnl -ldouble-conversion -levent -liberty 
+
+
+g++ -Wall -g -std=c++17 -o xdp-testing \
+    /home/cainiao/czkatran/czkatran/lib/Testing/czkatran_testing.cc\
+    /home/cainiao/czkatran/czkatran/lib/Testing/czkatranTestProvision.cc\
+    /home/cainiao/czkatran/czkatran/lib/Testing/czkatranTestUtil.cc\
+    /home/cainiao/czkatran/czkatran/lib/BaseBpfAdapter.cc\
+    /home/cainiao/czkatran/czkatran/lib/BpfAdapter.cc\
+    /home/cainiao/czkatran/czkatran/lib/Testing/Base64Helpers.cc\
+    /home/cainiao/czkatran/czkatran/lib/Vip.cc\
+    /home/cainiao/czkatran/czkatran/lib/czkatranSimulator.cc\
+    /home/cainiao/czkatran/czkatran/lib/MaglevBase.cc\
+    /home/cainiao/czkatran/czkatran/lib/FileWriter.cc\
+    /home/cainiao/czkatran/czkatran/lib/IOBuffWriter.cc\
+    /home/cainiao/czkatran/czkatran/lib/IpHelpers.cc\
+    /home/cainiao/czkatran/czkatran/lib/MacHelpers.cc\
+    /home/cainiao/czkatran/czkatran/lib/PerfBufferEventReader.cc\
+    /home/cainiao/czkatran/czkatran/lib/czKatranEventReader.cc\
+    /home/cainiao/czkatran/czkatran/lib/EventPipeCallback.cc\
+    /home/cainiao/czkatran/czkatran/lib/MonitoringServiceCore.cc\
+    /home/cainiao/czkatran/czkatran/lib/BpfLoader2.cc\
+    /home/cainiao/czkatran/czkatran/lib/CHHelper.cc\
+    /home/cainiao/czkatran/czkatran/lib/czKatanMonitor.cc\
+    /home/cainiao/czkatran/czkatran/lib/czkatranLb.cc\
+    /home/cainiao/czkatran/czkatran/lib/MaglevHash.cc\
+    /home/cainiao/czkatran/czkatran/lib/MaglevHashV2.cc\
+    /home/cainiao/czkatran/czkatran/lib/MurmurHash3.cc\
+    /home/cainiao/czkatran/czkatran/lib/Netlink.cc\
+    /home/cainiao/czkatran/czkatran/lib/MonitoringStructs.cc\
+    /home/cainiao/czkatran/czkatran/lib/Testing/BpfTester.cc\
+    /home/cainiao/czkatran/czkatran/lib/Testing/PcapParser.cc\
+    /home/cainiao/czkatran/czkatran/lib/PipeWriter.cc\
+    /home/cainiao/czkatran/czkatran/lib/PcapWriter.cc\
+    /home/cainiao/czkatran/czkatran/lib/PcapMsgMeta.cc\
+    /home/cainiao/czkatran/czkatran/lib/PcapMsg.cc\
+    -lgflags -lpthread -lfolly -lglog -lfmt -lbpf -lmnl -ldouble-conversion -levent -liberty
