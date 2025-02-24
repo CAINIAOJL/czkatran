@@ -4,10 +4,10 @@
 #include <folly/io/IOBuf.h>
 #include <folly/io/async/AsyncPipe.h>
 
-#include "/home/jianglei/czkatran/czkatran/lib/MonitoringStructs.h"
-#include "/home/jianglei/czkatran/czkatran/lib/czkatranLbStructs.h"
-#include "/home/jianglei/czkatran/czkatran/lib/PcapWriter.h"
-#include "/home/jianglei/czkatran/czkatran/lib/PcapMsgMeta.h"
+#include "MonitoringStructs.h"
+#include "czkatranLbStructs.h"
+#include "PcapWriter.h"
+#include "PcapMsgMeta.h"
 
 namespace folly {
     class ScopedEventBaseThread;

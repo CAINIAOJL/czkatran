@@ -11,27 +11,27 @@
 #include <folly/Range.h>
 #include <gflags/gflags.h>
 
-#include "/home/jianglei/czkatran/czkatran/lib/MonitoringStructs.h"
-#include "/home/jianglei/czkatran/czkatran/lib/czkatranLbStructs.h"
-#include "/home/jianglei/czkatran/czkatran/lib/Testing/BpfTester.h"
+//#include "/home/jianglei/czkatran/czkatran/lib/MonitoringStructs.h"
+//#include "/home/jianglei/czkatran/czkatran/lib/czkatranLbStructs.h"
+//#include "/home/jianglei/czkatran/czkatran/lib/Testing/BpfTester.h"
 
-//#include "/home/cainiao/czkatran/czkatran/lib/MonitoringStructs.h"
-//#include "/home/cainiao/czkatran/czkatran/lib/czkatranLbStructs.h"
-//#include "/home/cainiao/czkatran/czkatran/lib/Testing/BpfTester.h"
+#include "/home/cainiao/czkatran/czkatran/lib/MonitoringStructs.h"
+#include "/home/cainiao/czkatran/czkatran/lib/czkatranLbStructs.h"
+#include "/home/cainiao/czkatran/czkatran/lib/Testing/BpfTester.h"
 
-#include "/home/jianglei/czkatran/czkatran/lib/Testing/TestData/czkatranGueOptionalTestFixtures.h"
-#include "/home/jianglei/czkatran/czkatran/lib/Testing/TestData/czkatranHCTestFixtures.h"
-#include "/home/jianglei/czkatran/czkatran/lib/Testing/TestData/czkatranOptionalTestFixtures.h"
-#include "/home/jianglei/czkatran/czkatran/lib/Testing/czkatranTestProvision.h"
-#include "/home/jianglei/czkatran/czkatran/lib/Testing/czkatranTestUtil.h"
-#include "/home/jianglei/czkatran/czkatran/lib/Testing/TestData/czkatranUdpStableRtTestFixtures.h"
+//#include "/home/jianglei/czkatran/czkatran/lib/Testing/TestData/czkatranGueOptionalTestFixtures.h"
+//#include "/home/jianglei/czkatran/czkatran/lib/Testing/TestData/czkatranHCTestFixtures.h"
+//#include "/home/jianglei/czkatran/czkatran/lib/Testing/TestData/czkatranOptionalTestFixtures.h"
+//#include "/home/jianglei/czkatran/czkatran/lib/Testing/czkatranTestProvision.h"
+//#include "/home/jianglei/czkatran/czkatran/lib/Testing/czkatranTestUtil.h"
+//#include "/home/jianglei/czkatran/czkatran/lib/Testing/TestData/czkatranUdpStableRtTestFixtures.h"
 
-//#include "/home/cainiao/czkatran/czkatran/lib/Testing/TestData/czkatranGueOptionalTestFixtures.h"
-//#include "/home/cainiao/czkatran/czkatran/lib/Testing/TestData/czkatranHCTestFixtures.h"
-//#include "/home/cainiao/czkatran/czkatran/lib/Testing/TestData/czkatranOptionalTestFixtures.h"
-//#include "/home/cainiao/czkatran/czkatran/lib/Testing/czkatranTestProvision.h"
-//#include "/home/cainiao/czkatran/czkatran/lib/Testing/czkatranTestUtil.h"
-//#include "/home/cainiao/czkatran/czkatran/lib/Testing/TestData/czkatranUdpStableRtTestFixtures.h"
+#include "/home/cainiao/czkatran/czkatran/lib/Testing/TestData/czkatranGueOptionalTestFixtures.h"
+#include "/home/cainiao/czkatran/czkatran/lib/Testing/TestData/czkatranHCTestFixtures.h"
+#include "/home/cainiao/czkatran/czkatran/lib/Testing/TestData/czkatranOptionalTestFixtures.h"
+#include "/home/cainiao/czkatran/czkatran/lib/Testing/czkatranTestProvision.h"
+#include "/home/cainiao/czkatran/czkatran/lib/Testing/czkatranTestUtil.h"
+#include "/home/cainiao/czkatran/czkatran/lib/Testing/TestData/czkatranUdpStableRtTestFixtures.h"
 
 using namespace czkatran::testing;
 using czkatranFeatureEnum = czkatran::czkatranFeatureEnum;
@@ -46,16 +46,16 @@ DEFINE_string(monitor_output, "", "path to output monitor file");
 
 DEFINE_string(balancer_prog, "balancer.o", "path to balancer prog");
 DEFINE_string(reloaded_balancer_prog, "", "path to balancer bpf prog which would reload main one");
-DEFINE_string(healthchecking_prog, "healthchecking.o", "path to healthchecking prog");
+DEFINE_string(healthchecking_prog, "", "path to healthchecking prog");
 
 DEFINE_bool(print_base64, false, "print packets in base64");
-DEFINE_bool(test_from_fixturesm, false, "run tests on predefined dataset");
+DEFINE_bool(test_from_fixturesm, true, "run tests on predefined dataset");
 DEFINE_bool(perf_testing, false, "run perf tests on predefined dataset");
-DEFINE_bool(optional_tests, false, "run optional tests");
-DEFINE_bool(optional_counter_tests, false, "run optional counter tests");
-DEFINE_bool(gue, false, "run GUE tests instead of IPIP ones");
-DEFINE_bool(stable_rt, false, "run UDP stable routing tests");
-DEFINE_bool(tpr, false, "run TPR tests (TCP Server_Id based routing) instead of IPIP or GUE tests");
+DEFINE_bool(optional_tests, true, "run optional tests");
+DEFINE_bool(optional_counter_tests, true, "run optional counter tests");
+DEFINE_bool(gue, true, "run GUE tests instead of IPIP ones");
+DEFINE_bool(stable_rt, true, "run UDP stable routing tests");
+DEFINE_bool(tpr, true, "run TPR tests (TCP Server_Id based routing) instead of IPIP or GUE tests");
 
 DEFINE_int32(repeat, 1000000, "perf test runs for single packet");
 DEFINE_int32(position, -1, "perf test runs for single packet");

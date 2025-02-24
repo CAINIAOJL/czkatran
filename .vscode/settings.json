@@ -118,7 +118,11 @@
     "__threading_support": "cpp",
     "__verbose_abort": "cpp",
     "locale": "cpp",
-    "print": "cpp"
+    "print": "cpp",
+    "udp.h": "c",
+    "healthchecking.maps.h": "c",
+    "healthchecking_helpers.h": "c",
+    "healthchecking_structs.h": "c"
   },
   "C_Cpp_Runner.msvcBatchPath": "",
   "C_Cpp_Runner.cCompilerPath": "gcc",
