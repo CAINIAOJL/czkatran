@@ -179,7 +179,7 @@ __always_inline static int check_decap_dst(struct packet_description *packet,
 
     if (is_ipv6) {
         addr_index = V6_SRC_INDEX;
-        host_primary_addrs = bpf_map_lookup_elem(&packet_srcs, &addr_index);
+        host_primary_addrs = bpf_map_lookup_elem(&pckt_srcs, &addr_index);
         if (host_primary_addrs) {
             if (host_primary_addrs->dstv6[0] != packet->flow.dstv6[0] ||
                host_primary_addrs->dstv6[1] != packet->flow.dstv6[1] ||
@@ -190,7 +190,7 @@ __always_inline static int check_decap_dst(struct packet_description *packet,
         }
     } else {
         addr_index = V4_SRC_INDEX;
-        host_primary_addrs = bpf_map_lookup_elem(&packet_srcs, &addr_index);
+        host_primary_addrs = bpf_map_lookup_elem(%pckt_srcs, &addr_index);
         if (host_primary_addrs) {
             if (host_primary_addrs->dst != packet->flow.dst) {
                 return XDP_PASS;

@@ -323,6 +323,47 @@ class czKatranLb {
         bool removeFeature(
                 czkatranFeatureEnum feature,
                 const std::string& prog_path = "");
+
+//------------------------------------2025-2-28-------------------------------
+        bool changeMac(const std::vector<uint8_t>& mac);
+
+        std::vector<uint8_t> getMac();
+
+        std::map<int, uint32_t> getIndexOfNetworkInterfaces();
+
+        bool delVip(const VipKey& vip);
+
+        std::vector<NewReal> getRealsForVip(const VipKey& vip);
+
+        uint32_t getVipFlags(const VipKey& vip);
+
+        std::vector<VipKey> getAllVips();
+
+        const std::unordered_map<uint32_t, std::string> getNumToRealMap();
+
+        std::vector<QuicReal> getQuicRealsMapping();
+
+        std::unordered_map<uint32_t, std::string> getHealthcheckersDst();
+
+        std::unordered_map<std::string, std::string> getSrcRoutingRule();
+
+        std::unordered_map<folly::CIDRNetwork, std::string> getSrcRoutingRuleCidr();
+
+        const std::unordered_map<folly::CIDRNetwork, uint32_t>& getSrcRoutingMap() {
+                return lpmSrcMapping_;
+        }
+
+        bool clearAllSrcRoutingRules();
+
+        bool delInlineDecapDst(const std::string& dst);
+
+        std::vector<std::string> getInlineDecapDst();
+
+        bool delHealthcheckerDst(const uint32_t somark);
+
+//------------------------------------2025-2-28-------------------------------
+
+
 //------------------------------------2025-2-17/9-------------------------------
 
 //--------------------------------------private---------------------------------

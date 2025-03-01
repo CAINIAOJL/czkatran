@@ -108,7 +108,8 @@ struct udp_stable_rt_result {
  * @param is_icmp 是否是icmp报文
  * @return 偏移量~
  */
-__always_inline static __u64 calc_offset(bool is_ipv6,
+__attribute__((__always_inline__)) static inline __u64
+                             calc_offset(bool is_ipv6,
                                         bool is_icmp) {
     __u64 off = sizeof(struct ethhdr);
     if(is_ipv6) {
@@ -133,7 +134,8 @@ __always_inline static __u64 calc_offset(bool is_ipv6,
  * @param packet 解析结果
  * @return 是否解析成功~
  */
-__always_inline static bool parse_udp(void *data,
+__attribute__((__always_inline__)) static inline bool//---------------√
+                             parse_udp(void *data,
                                       void *data_end,
                                       bool is_ipv6,
                                       struct packet_description *packet) {
@@ -156,7 +158,8 @@ __always_inline static bool parse_udp(void *data,
 }
 
 //~
-__always_inline static bool parse_tcp(void *data,
+__attribute__((__always_inline__)) static inline bool//---------------√
+                             parse_tcp(void *data,
                                       void *data_end,
                                       bool is_ipv6,
                                       struct packet_description *packet) {
@@ -186,7 +189,8 @@ __always_inline static bool parse_tcp(void *data,
 
 #if defined(TCP_SERVER_ID_ROUTING) || defined(DECAP_TPR_STATS)
 
-__always_inline int parse_hdr_opt_raw(const void *data,
+__attribute__((__always_inline__)) int
+                     parse_hdr_opt_raw(const void *data,
                                       const void *data_end, 
                                       struct hdr_opt_state *tcp_state) {
 
@@ -303,7 +307,7 @@ __always_inline static int tcp_hdr_opt_lookup_server_id(const struct xdp_md *xdp
 #endif //TCP_SERVER_ID_ROUTING || DECAP_TPR_STATS
 
 //~
-__always_inline static struct quic_parse_result parse_quic(
+__attribute__((__always_inline__)) static inline struct quic_parse_result parse_quic(//---------------√
     void* data,
     void* data_end,
     bool is_ipv6,
@@ -381,7 +385,7 @@ __always_inline static struct quic_parse_result parse_quic(
 
 
 //~
-__always_inline static struct udp_stable_rt_result parse_udp_stable_rt_hdr(
+__attribute__((__always_inline__)) static inline struct udp_stable_rt_result parse_udp_stable_rt_hdr(
     void* data,
     void* data_end,
     bool is_ipv6,
@@ -422,7 +426,8 @@ __always_inline static struct udp_stable_rt_result parse_udp_stable_rt_hdr(
 
 
 #ifdef TCP_SERVER_ID_ROUTING
-__always_inline static int tcp_hdr_opt_lookup(
+__attribute__((__always_inline__)) static inline int
+ tcp_hdr_opt_lookup(
     struct xdp_md* ctx,
     bool is_ipv6,
     struct real_definition** dst,

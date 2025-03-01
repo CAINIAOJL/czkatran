@@ -32,5 +32,5 @@ struct {
     __uint(max_entries, 2);
     __type(key, __u32);
     __type(value, struct real_definition);
-} packet_srcs SEC(".maps");
+} pckt_srcs SEC(".maps");
 #endif

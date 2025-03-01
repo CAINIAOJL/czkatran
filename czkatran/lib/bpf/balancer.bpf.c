@@ -13,7 +13,7 @@
 #include "packet_parse.h"
 #include "handle_icmp.h"
 
-__always_inline static bool is_under_flood(
+__attribute__((__always_inline__)) static inline bool is_under_flood(
     __u32* cur_time
 ) {
     __u32 conn_rate_key = MAX_VIPS + NEW_CONN_RATE_CNTR;
@@ -46,7 +46,7 @@ __always_inline static bool is_under_flood(
 
 
 //~
-__always_inline static int 
+__attribute__((__always_inline__)) static inline int//---------------√
 process_l3_headers(
     struct packet_description* pckt,
     __u8* protocol,
@@ -92,7 +92,7 @@ process_l3_headers(
         }
     } else {
         //ipv6
-        iphdr = data + nh_off;
+        ipv6hdr = data + nh_off;
         if(ipv6hdr + 1 > data_end) {
             return XDP_DROP;
         }
@@ -127,7 +127,8 @@ process_l3_headers(
 
 //~
 #ifdef INLINE_DECAP_GENERIC
-__always_inline static int check_decap_dst(
+__attribute__((__always_inline__)) static inline int //---------------√
+    check_decap_dst(
     struct packet_description* pckt,
     bool is_ipv6,
     bool* pass
@@ -142,7 +143,7 @@ __always_inline static int check_decap_dst(
     if(is_ipv6) {
         addr_index = V6_SRC_INDEX;
         //问题
-        host_primary_addrss = bpf_map_lookup_elem(&packet_srcs, &addr_index);
+        host_primary_addrss = bpf_map_lookup_elem(&pckt_srcs, &addr_index);
         /*
         由于外部数据包目标与主机 IPv6 不匹配，
         因此请勿解封。
@@ -158,9 +159,14 @@ __always_inline static int check_decap_dst(
        }
     } else {
         addr_index = V4_SRC_INDEX;
-        host_primary_addrss = bpf_map_lookup_elem(&packet_srcs, &addr_index);
+        host_primary_addrss = bpf_map_lookup_elem(&pckt_srcs, &addr_index);
         if(host_primary_addrss) {
             if(host_primary_addrss->dst != pckt->flow.dst) {
+                /*
+                由于外部数据包目的地与主机 IPv4 不匹配，因此
+                不要解封。它将允许传递数据包
+                添加到正确的网络命名空间。
+                */
                 return XDP_PASS;
             }
         }
@@ -182,7 +188,7 @@ __always_inline static int check_decap_dst(
         if(!data_stats) {
             return XDP_DROP;
         }
-        data_stats->v1++;
+        data_stats->v1 += 1;
     }
     return FURTHER_PROCESSING;
 }
@@ -190,7 +196,7 @@ __always_inline static int check_decap_dst(
 
 //~
 #ifdef INLINE_DECAP_IPIP
-__always_inline static int 
+__attribute__((__always_inline__)) static inline int //---------------√
 process_encaped_ipip_pckt(
     void** data,
     void** data_end,
@@ -240,9 +246,9 @@ process_encaped_ipip_pckt(
     }
 
     if(is_ipv6) {
-        data_stats->v2++;
+        data_stats->v2 += 1;
     } else {
-        data_stats->v1++;
+        data_stats->v1 += 1;
     }
 
     if(action >= 0) {
@@ -259,7 +265,8 @@ process_encaped_ipip_pckt(
 //~
 #ifdef INLINE_DECAP_GUE
 
-__always_inline static void incr_decap_vip_stats(
+__attribute__((__always_inline__)) static inline void
+ incr_decap_vip_stats(
     void* data,
     __u64 nh_off,
     void* data_end,
@@ -308,12 +315,13 @@ __always_inline static void incr_decap_vip_stats(
         //通过hash序号查找并且更新状态
         struct lb_stats* decap_stats = bpf_map_lookup_elem(&decap_vip_stats, &vip_num);
         if(decap_stats) {
-            decap_stats->v1++; //记录状态
+            decap_stats->v1 += 1; //记录状态
         }
     }
 }
 
-__always_inline static int process_encaped_gue_pckt(
+__attribute__((__always_inline__)) static inline int 
+process_encaped_gue_pckt(
     void** data,
     void** data_end,
     struct xdp_md* ctx,
@@ -382,7 +390,7 @@ __always_inline static int process_encaped_gue_pckt(
 }
 #endif //INLINE_DECAP_GUE
 
-__always_inline static void increment_quic_cid_version_stats(
+__attribute__((__always_inline__)) static inline void increment_quic_cid_version_stats(
     struct lb_quic_packets_stats* quic_packets_stats,
     __u8 cid_version
 )
@@ -398,7 +406,7 @@ __always_inline static void increment_quic_cid_version_stats(
     }
 }
 
-__always_inline static int check_and_update_real_index_in_lru(
+__attribute__((__always_inline__)) static inline int check_and_update_real_index_in_lru(
     struct packet_description* pckt,
     void* lru_map
 ) {
@@ -422,7 +430,7 @@ __always_inline static int check_and_update_real_index_in_lru(
 }
 
 //~
-__always_inline static void incr_server_id_routing_stats(
+__attribute__((__always_inline__)) static inline void incr_server_id_routing_stats(
     __u32 vip_num, 
     bool newConn, 
     bool misMatchInLRU)
@@ -441,7 +449,7 @@ __always_inline static void incr_server_id_routing_stats(
 
 #ifdef UDP_STABLE_ROUTING
 //~
-__always_inline static bool process_udp_stable_routing(
+__attribute__((__always_inline__)) static inline bool process_udp_stable_routing(
     void* data,
     void* data_end,
     struct real_definition** dst,
@@ -470,27 +478,27 @@ __always_inline static bool process_udp_stable_routing(
                 //得到real_pos对应的real_definition
                 *dst = bpf_map_lookup_elem(&reals, &key);
                 if(!*dst) {
-                    udp_lb_rt_stats->cid_unknown_real_dropped++;
+                    udp_lb_rt_stats->cid_unknown_real_dropped += 1;
                     return XDP_DROP;
                 }
-                udp_lb_rt_stats->cid_routed++;
+                udp_lb_rt_stats->cid_routed += 1;
             }
         } else {
-            udp_lb_rt_stats->cid_invalid_server_id++;
-            udp_lb_rt_stats->ch_routed++;
+            udp_lb_rt_stats->cid_invalid_server_id += 1;
+            udp_lb_rt_stats->ch_routed += 1;
         }
     } else {
         if(!usr.is_stable_rt_pkt) {
-            udp_lb_rt_stats->invalid_packet_type++;
+            udp_lb_rt_stats->invalid_packet_type += 1;
         }
-        udp_lb_rt_stats->ch_routed++;
+        udp_lb_rt_stats->ch_routed += 1;
     }
 }
 #endif
 
 //~
 //cache操作，
-__always_inline static void connecttion_table_lookup(
+__attribute__((__always_inline__)) static inline void connecttion_table_lookup(
     struct real_definition** dst,
     struct packet_description* pckt, 
     void* lru_map,
@@ -520,7 +528,7 @@ __always_inline static void connecttion_table_lookup(
 
 //~
 #ifdef GLOBAL_LRU_LOOKUP
-__always_inline static int perform_global_lru_lookup(
+__attribute__((__always_inline__)) static inline int perform_global_lru_lookup(
     struct real_definition** dst,
     struct packet_description* pckt,
     __u32 cpu_num,
@@ -554,7 +562,7 @@ __always_inline static int perform_global_lru_lookup(
 
     return FURTHER_PROCESSING;
 }
-#endif
+#endif //GLOBAL_LRU_LOOKUP
 
 
 __always_inline static void increment_ch_drop_real_0() {
@@ -590,7 +598,7 @@ __always_inline static __u32 get_packet_hash(
 }
 
 //~
-__always_inline static bool get_packet_dst(
+__attribute__((__always_inline__)) static inline bool get_packet_dst(
     struct real_defination** dst,
     struct packet_description* pckt,
     struct vip_meta* vip_info,
@@ -608,7 +616,7 @@ __always_inline static bool get_packet_dst(
     under_flood = is_under_flood(&cur_time);
 
 #ifdef LPM_SRC_LOOKUP
-    if(vip_info->flags & F_SRC_ROUTING) {
+    if((vip_info->flags & F_SRC_ROUTING) && !under_flood) {
         __u32* lpm_val;
         if(is_ipv6) {
             struct v6_lpm_key lpm_key_v6 = {};
@@ -690,7 +698,7 @@ __always_inline static bool get_packet_dst(
 }
 
 //~
-__always_inline static int update_vip_lru_miss_stats(
+__attribute__((__always_inline__)) static inline int update_vip_lru_miss_stats(
     struct vip_definition* vip,
     struct packet_description* pckt,
     struct vip_meta* vip_info,
@@ -707,8 +715,8 @@ __always_inline static int update_vip_lru_miss_stats(
                             (lru_miss_stat_vip->vipv6[0] == vip->vipv6[0] &&
                             lru_miss_stat_vip->vipv6[1] == vip->vipv6[1] && 
                             lru_miss_stat_vip->vipv6[2] == vip->vipv6[2] && 
-                            lru_miss_stat_vip->vipv6[3] == vip->vipv6[3])
-                     || (!is_ipv6 && lru_miss_stat_vip->vip == vip->vip));
+                            lru_miss_stat_vip->vipv6[3] == vip->vipv6[3]))
+                     || (!is_ipv6 && lru_miss_stat_vip->vip == vip->vip);
     bool port_match = lru_miss_stat_vip->port == vip->port;
     bool proto_match = lru_miss_stat_vip->proto == vip->proto;
     bool vip_match = address_match && port_match && proto_match;
@@ -719,12 +727,12 @@ __always_inline static int update_vip_lru_miss_stats(
             return XDP_DROP;
         }
 
-        *lru_miss_stats_++;
+        *lru_miss_stats_ += 1;
     }
     return FURTHER_PROCESSING;
 }
 
-__always_inline static int 
+__attribute__((__always_inline__)) static inline int 
 process_packet(
     struct xdp_md *ctx, 
     __u64 nh_off, 
@@ -860,9 +868,9 @@ process_packet(
             return XDP_DROP;//数据包超出限制大小，丢弃
         }
         if(is_ipv6) {
-            data_stats->v2++; //计数
+            data_stats->v2 += 1; //计数
         } else {
-            data_stats->v1++;
+            data_stats->v1 += 1;
         }
 
         return send_icmp_too_big(ctx, is_ipv6, data_end - data);
@@ -1008,7 +1016,7 @@ process_packet(
             }
 
             if(pckt.flags & F_SYN_SET) {
-                tpr_packets_stats_->tcp_syn++;
+                tpr_packets_stats_->tcp_syn += 1;
                 incr_server_id_routing_stats(
                     vip_num, true, false
                 );
@@ -1016,18 +1024,19 @@ process_packet(
                 if(tcp_hdr_opt_lookup(ctx, is_ipv6, &dst, &pckt) == FURTHER_PROCESSING) {
                     tpr_packets_stats_->ch_routed++;
                 } else {
-                    if(lru_map_ && (vip_info->flags & F_LRU_BYPASS)) {
+                    if(lru_map_ && !(vip_info->flags & F_LRU_BYPASS)) {
                         int res = check_and_update_real_index_in_lru(&pckt, lru_map_);
                         if(res == DST_MISMATCH_IN_LRU) {
                             tpr_packets_stats_->dst_mismatch_in_lru++;
                             incr_server_id_routing_stats(vip_num, false, true);
                         }
                     }
-                    tpr_packets_stats_->sid_routed++;
+                    tpr_packets_stats_->sid_routed += 1;
                 } 
             }
         }
-#endif //
+#endif //TCP_SERVER_ID_ROUTING
+
         //在缓存中寻找lru
         //排除三种情况
         //1：没有找到dst
@@ -1093,21 +1102,20 @@ process_packet(
     }
 
     data_stats = bpf_map_lookup_elem(&stats, &vip_num); 
-    {
-        if(!data_stats) {
-            return XDP_DROP;
-        }
-        data_stats->v1++;
-        data_stats->v2+= pkt_bytes; //数据包的大小
+       
+    if(!data_stats) {
+        return XDP_DROP;
     }
+    data_stats->v1++;
+    data_stats->v2+= pkt_bytes; //数据包的大小
 
     data_stats = bpf_map_lookup_elem(&reals_stats, &pckt.real_index);
     if(!data_stats) {
         return XDP_DROP;
     }
 
-    data_stats->v1++;
-    data_stats->v2+= pkt_bytes;
+    data_stats->v1 += 1;
+    data_stats->v2 += pkt_bytes;
 
     //local_delivery_optimization 本地配送优化
 #ifdef LOCAL_DELIVERY_OPTIMIZATION
@@ -1134,7 +1142,7 @@ process_packet(
 
 
 SEC(PROG_SEC_NAME)
-int balancer_ingress(struct xdp_md *ctx) {
+int balancer_ingress(struct xdp_md *ctx) {//---------------√
     void *data = (void*)(long)ctx->data;
     void *data_end = (void*)(long)ctx->data_end;
 

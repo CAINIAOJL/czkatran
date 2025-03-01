@@ -40,7 +40,7 @@ ICMP消息头中的校验和字段是
 */
 
 //~
-__always_inline static int swap_mac_and_send(
+__attribute__((__always_inline__)) static inline int swap_mac_and_send(//---------------√
     void* data,
     void* data_end
 )
@@ -54,7 +54,7 @@ __always_inline static int swap_mac_and_send(
 }
 
 //~
-__always_inline static void swap_mac(
+__attribute__((__always_inline__)) static inline void swap_mac(//---------------√
     void* data,
     struct ethhdr* orig_eth
 ) {
@@ -67,7 +67,7 @@ __always_inline static void swap_mac(
 }
 
 //发送icmp报文~
-__always_inline static int send_icmp_reply(
+__attribute__((__always_inline__)) static inline int send_icmp_reply(//---------------√
     void* data,
     void* data_end
 ) {
@@ -106,7 +106,8 @@ __always_inline static int send_icmp_reply(
 
 
 //~
-__attribute__((__always_inline__)) static inline int parse_icmp(
+__attribute__((__always_inline__)) static inline int//---------------√
+    parse_icmp(
     void* data,
     void* data_end,
     __u64 nh_off,
@@ -132,10 +133,10 @@ __attribute__((__always_inline__)) static inline int parse_icmp(
         if(!stats_) {
             return XDP_DROP;
         }
-        stats_->v1++;
+        stats_->v1 += 1;
         __u16 pmtu = bpf_ntohs(icmp_hdr->un.frag.mtu);
         if(pmtu < MAX_MTU_IN_PTB_TO_DROP) {
-            stats_->v2++;
+            stats_->v2 += 1;
         }
     }
 
@@ -159,7 +160,8 @@ __attribute__((__always_inline__)) static inline int parse_icmp(
 }
 
 //~
-__always_inline static int send_icmp6_reply(
+__attribute__((__always_inline__)) static inline int 
+    send_icmp6_reply(//---------------√
     void* data,
     void* data_end 
 )
@@ -191,7 +193,7 @@ __always_inline static int send_icmp6_reply(
 }
 
 //~
-__always_inline static int send_icm6_too_big(
+__attribute__((__always_inline__)) static inline int send_icm6_too_big(//---------------√
     struct xdp_md* ctx
 )
 {
@@ -247,10 +249,12 @@ __always_inline static int send_icm6_too_big(
 }
 
 //~
-__always_inline static int send_icm_too_big(
+__attribute__((__always_inline__)) static inline int //---------------√
+ send_icm_too_big(
     struct xdp_md* ctx
 ) {
     int headroom = (int)sizeof(struct iphdr) + (int)sizeof(struct icmphdr);
+    //增长头部
     if(XDP_ADJUST_HEAD_FUNC(ctx, 0 - headroom)) {
         return XDP_DROP;
     }
@@ -308,7 +312,8 @@ __always_inline static int send_icm_too_big(
 }
 
 //~
-__always_inline static int send_icmp_too_big(
+__attribute__((__always_inline__)) static inline int//---------------√
+ send_icmp_too_big(
     struct xdo_md* ctx,
     bool is_ipv6,
     int pckt_size
@@ -334,7 +339,7 @@ __always_inline static int send_icmp_too_big(
 
 
 //~
-__always_inline static int parse_icmpv6(
+__always_inline static int parse_icmpv6(//---------------√
     void* data,
     void* data_end,
     __u64 nh_off,
@@ -362,10 +367,10 @@ __always_inline static int parse_icmpv6(
         if(!stats_) {
             return XDP_DROP;
         }
-        stats_->v1++;//记录状态
+        stats_->v1 += 1;//记录状态
         __u32 pmtu = bpf_ntohs(icmp6_hdr->icmp6_mtu);
         if(pmtu < MAX_MTU_IN_PTB_TO_DROP) {
-            stats_->v2++;//记录状态
+            stats_->v2 += 1;//记录状态
         }
     }
 
@@ -385,7 +390,7 @@ __always_inline static int parse_icmpv6(
 
 //~
 //补充quic的实现机理
-__always_inline static bool ignorable_quic_icmp_code(
+__attribute__((__always_inline__)) static inline bool ignorable_quic_icmp_code(
     void* data,
     void* data_end,
     bool is_ipv6

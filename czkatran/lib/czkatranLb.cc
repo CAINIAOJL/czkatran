@@ -54,7 +54,7 @@ czKatranLb::czKatranLb(const czKatranConfig& config,
   // from CH_Ring to real server and the mapping from server_id to real server
   // are independent of what is in realNums_.
   //
-  // Example 1:
+  // Example 1:讨论去除首位为零的情况
   //    Say, realNums_ initialized to {0, 1, 2}
   // After registering 3 quic servers, it will have server_id_map and reals
   // array as follows:
@@ -91,7 +91,7 @@ czKatranLb::czKatranLb(const czKatranConfig& config,
   // array.
 
 
-    for(uint32_t i = 0; i < config_.maxReals; i++) {
+    for(uint32_t i = 1; i < config_.maxReals; i++) {
         realNums_.push_back(i);
     }
 
@@ -507,6 +507,7 @@ void czKatranLb:: modifyQuicRealsMapping(//--------------------------√
             }
             decreaseRefCountForReal(raddr); //计数器减一
             quciMapping_.erase(real_iter);
+            LOG(INFO) << fmt::format("quicMapping_ delete iter: id {}, IpAddress {}", real_iter->first, real_iter->second.str());
         } else {
             //ADD
             if(real_iter != quciMapping_.end()) {
@@ -528,6 +529,7 @@ void czKatranLb:: modifyQuicRealsMapping(//--------------------------√
             }
             to_update[real.id] = rnum;
             quciMapping_[real.id] = raddr; //更新mapping
+            LOG(INFO) << fmt::format("quicMapping_ added iter: id {}, IpAddress {}", real.id, raddr.str());
         }
     }
     //不是在测试，要去更新bpf-map
@@ -2326,4 +2328,286 @@ bool czKatranLb:: removeFeature(//--------------------------√
 }
 
 //------------------------------------2025-2-17/9-------------------------------
+
+//------------------------------------2025-2-28-------------------------------
+bool czKatranLb:: changeMac(const std::vector<uint8_t>& mac)
+{
+    uint32_t key = kMacAddrPos;
+
+    VLOG(4) << "change mac address";
+
+    if(mac.size() != kMacBytes) {
+        return false;
+    }
+    for(int i = 0; i < kMacBytes; i++) {
+        ctlValues_[key].mac[i] = mac[i];
+    }
+    if(!config_.testing) {
+        auto res = bpfAdapter_->bpfUpdateMap(
+            bpfAdapter_->getMapFdByName(czKatranLbMaps::ctl_array),
+            &key,
+            &ctlValues_[kMacAddrPos].mac
+        );
+        if(res != 0) {
+            lbStats_.bpfFailedCalls++;
+            VLOG(4) << "can not update ctl array for mac address";
+            return false;
+        }
+        if(features_.directHealthchecking) {
+            key = kHcDstMacPos;
+            auto res = bpfAdapter_->bpfUpdateMap(
+                bpfAdapter_->getMapFdByName(czKatranLbMaps::hc_pckt_macs),
+                &key,
+                &ctlValues_[kMacAddrPos].mac
+            );
+            if(res != 0) {
+                lbStats_.bpfFailedCalls++;
+                VLOG(4) << "can not update hc_pckt_macs for mac address";
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+std::vector<uint8_t> czKatranLb:: getMac()
+{
+    return std::vector<uint8_t>(
+        std::begin(ctlValues_[kMacAddrPos].mac),
+        std::end(ctlValues_[kMacAddrPos].mac)
+    );
+}
+
+std::map<int, uint32_t> czKatranLb:: getIndexOfNetworkInterfaces()
+{
+    std::map<int, uint32_t> result;
+    result[kMainIntfPos] = ctlValues_[kMainIntfPos].ifindex;
+    if(config_.enableHc) {
+        result[kHcIntfPos] = ctlValues_[kHcIntfPos].ifindex;
+        if(config_.tunnelBasedHCEncap) {
+            result[kIpv4TunPos] = ctlValues_[kIpv4TunPos].ifindex;
+            result[kIpv6TunPos] = ctlValues_[kIpv6TunPos].ifindex;
+        }
+    }
+    return result;
+}
+
+bool czKatranLb:: delVip(const VipKey& vip)
+{
+    LOG(INFO) << fmt::format("deleting vip: {}: {}: {}", vip.address, vip.port, vip.proto);
+
+    auto iter = vips_.find(vip);
+    if(iter == vips_.end()) {
+        LOG(INFO) << "vip: {}: {}: {} not found";
+        return false;
+    }
+
+    auto vip_reals = iter->second.getReals();
+    for(auto& real : vip_reals) {
+        auto real_num = numToReals_[real];//找到对应的后端服务器IP地址
+        decreaseRefCountForReal(real_num);
+    }
+    vipNums_.push_back(iter->second.getVipNum()); //放回到vipNums_中，准备下次使用
+    if(!config_.testing) {
+        updateVipMap(ModifyAction::DEL, vip);
+    }
+    vips_.erase(iter);
+    return true;
+}
+
+std::vector<NewReal> czKatranLb:: getRealsForVip(const VipKey& vip)
+{
+    auto iter = vips_.find(vip);
+    if(iter == vips_.end()) {
+        throw std::invalid_argument(fmt::format(
+            "vip: address {} port {} proto {} not found",
+            vip.address,
+            vip.port,
+            vip.proto
+        ));
+    }
+    std::vector<NewReal> result;
+    NewReal r;
+    auto reals = iter->second.getRealsAndWeights();
+    for(auto& real : reals) {
+        r.address = numToReals_[real.num].str();
+        r.flags = reals_[numToReals_[real.num]].flags;
+        r.weight = real.weight;
+        result.push_back(r);
+    }
+    return result;
+}
+
+uint32_t czKatranLb:: getVipFlags(const VipKey& vip)
+{
+    auto iter = vips_.find(vip);
+    if(iter == vips_.end()) {
+        throw std::invalid_argument(fmt::format(
+            "vip: address {} port {} proto {} not found",
+            vip.address,
+            vip.port,
+            vip.proto
+        ));
+    }
+    return iter->second.getVipFlags();
+}
+
+std::vector<VipKey> czKatranLb:: getAllVips()
+{
+    std::vector<VipKey> result;
+    for(auto& vip: vips_) {
+        result.push_back(vip.first);
+    }
+    return result;
+}
+
+const std::unordered_map<uint32_t, std::string> czKatranLb:: getNumToRealMap()
+{
+    std::unordered_map<uint32_t, std::string> result;
+    for(auto& [num, real] : numToReals_) {
+        result[num] = real.str(); 
+    }
+    return result;
+}
+
+std::vector<QuicReal> czKatranLb:: getQuicRealsMapping()
+{
+    std::vector<QuicReal> result;
+    QuicReal r;
+    for(auto& real: quciMapping_) {
+        r.id = real.first;
+        r.address = real.second.str();
+        result.push_back(r);
+    }
+    return result;
+}
+
+std::unordered_map<uint32_t, std::string> czKatranLb:: getHealthcheckersDst()
+{
+    std::unordered_map<uint32_t, std::string> result;
+    for(auto& [somark, addr]: hcReals_) {
+        result[somark] = addr.str();
+    }
+    return result;
+}
+
+std::unordered_map<std::string, std::string> czKatranLb::getSrcRoutingRule()
+{
+    std::unordered_map<std::string, std::string> result;
+    if(!features_.srcRouting && !config_.testing) {
+        LOG(ERROR) << "src routing is not enabled";
+        return result;
+    }
+    for(auto& [cidr, num] : lpmSrcMapping_) {
+        auto real = numToReals_[num];
+        //"10.0.0.0/24"
+        //cidr.first = "10.0.0.0"
+        //cidr.second = 24
+        auto src_network = fmt::format("{}/{}", cidr.first.str(), cidr.second);
+        result[src_network] = real.str();
+    }
+    return result;
+}
+
+std::unordered_map<folly::CIDRNetwork, std::string> czKatranLb:: getSrcRoutingRuleCidr()
+{
+    std::unordered_map<folly::CIDRNetwork, std::string> result;
+    if(!features_.srcRouting && !config_.testing) {
+        LOG(ERROR) << "src routing is not enabled";
+        return result;
+    }
+
+    for(auto& [cidr, num] : lpmSrcMapping_) {
+        auto real = numToReals_[num];
+        result[cidr] = real.str();
+    }
+    return result;
+}
+
+bool czKatranLb:: clearAllSrcRoutingRules()
+{
+    if(!features_.srcRouting && !config_.testing) {
+        LOG(ERROR) << "src routing is not enabled";
+        return false;
+    }
+    for(auto& [cidr, num] : lpmSrcMapping_) {
+        auto real = numToReals_.find(num);
+        if(real != numToReals_.end()) {
+            decreaseRefCountForReal(real->second);
+            if(!config_.testing) {
+                modifyLpmSrcRule(ModifyAction::DEL, cidr, num);
+            }
+        }
+    }
+    lpmSrcMapping_.clear();
+    return true;
+}
+
+bool czKatranLb:: delInlineDecapDst(const std::string& dst)
+{
+    if(!features_.inlineDecap && !config_.testing) {
+        LOG(ERROR) << "inline decap is not enabled";
+        return false;
+    }
+    if(validateAddress(dst) == AddressType::INVALID) {
+        LOG(ERROR) << fmt::format("invalid address: {}", dst);
+        return false;
+    }
+
+    folly::IPAddress addr(dst);
+    auto real = decapDsts_.find(addr);
+    if(real == decapDsts_.end()) {
+        LOG(ERROR) << "inline decap dst: {} not found" << dst;
+        return false;
+    }
+    VLOG(2) << "deleting inline decap dst: " << dst;
+    decapDsts_.erase(real);
+    if(!config_.testing) {
+        modifyDecapDst(ModifyAction::DEL, addr);
+    }
+    return true;
+}
+
+std::vector<std::string> czKatranLb:: getInlineDecapDst()
+{   
+    std::vector<std::string> result;
+    if(!features_.inlineDecap && !config_.testing) {
+        LOG(ERROR) << "inline decap is not enabled";
+        return result;
+    }
+    for(auto& addr : decapDsts_) {
+        result.push_back(addr.str());
+    }
+    return result;
+}
+
+bool czKatranLb:: delHealthcheckerDst(const uint32_t somark)
+{
+    if(!config_.enableHc) {
+        return false;
+    }
+
+    VLOG(4) << fmt::format("deleting healthchecker dst: {}", somark);
+
+    uint32_t key = somark;
+    auto hc_iter = hcReals_.find(key);
+    if(hc_iter == hcReals_.end()) {
+        LOG(ERROR) << fmt::format("somark: {} not found", somark);
+        return false;
+    }
+    if(!config_.testing) {
+        auto res = bpfAdapter_->bpfMapDeleteElement(
+            bpfAdapter_->getMapFdByName(czKatranLbMaps::hc_reals_map),
+            &key
+        );
+        if(res != 0) {
+            LOG(INFO) << "can not delete healthchecker dst";
+            lbStats_.bpfFailedCalls++;
+            return false;
+        }
+    }
+    hcReals_.erase(hc_iter);
+    return true;
+}
+
 }

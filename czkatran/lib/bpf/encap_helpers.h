@@ -13,7 +13,7 @@
 #include <bpf/bpf_helpers.h>
 
 //~
-__always_inline static void create_encap_ipv6_src(
+__attribute__((__always_inline__)) static inline void create_encap_ipv6_src(
     __u16 port, __be32 src, __u32* saddr
 )
 {
@@ -24,7 +24,7 @@ __always_inline static void create_encap_ipv6_src(
 }
 
 //~
-__always_inline static __u32 create_encap_ipv4_src(
+__attribute__((__always_inline__)) static inline __u32 create_encap_ipv4_src(
     __u16 port,
     __be32 src
 )
@@ -36,7 +36,7 @@ __always_inline static __u32 create_encap_ipv4_src(
 }
 
 //~
-__always_inline static void create_v4_hdr(
+__attribute__((__always_inline__)) static inline void create_v4_hdr(
     struct iphdr* ip_hdr,
     __u8 tos,
     __u32 saddr,
@@ -67,7 +67,7 @@ __always_inline static void create_v4_hdr(
 }
 
 //~
-__always_inline static void create_v6_hdr(
+__attribute__((__always_inline__)) static inline void create_v6_hdr(
     struct ipv6hdr* ip6_hdr,
     __u8 tos,
     __u32* saddr,

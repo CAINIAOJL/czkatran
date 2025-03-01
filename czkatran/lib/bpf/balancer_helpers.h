@@ -24,7 +24,8 @@ __always_inline static int recirculate(
 #endif //INLINE_DECAP_GENERIC
 
 //~
-__always_inline static int decrement_ttl(
+__attribute__((__always_inline__)) static inline int//---------------√
+    decrement_ttl(
     void* data,
     void* data_end,
     int offset,

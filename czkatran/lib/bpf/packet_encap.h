@@ -14,7 +14,7 @@
 #include <bpf/bpf_helpers.h>
 //~
 //默认使用 [ip(6?)ip6] = ipip隧道技术
-__always_inline static bool encap_v6(
+__attribute__((__always_inline__)) static inline bool encap_v6(
     struct xdp_md* ctx,
     struct ctl_value* cval,
     bool is_ipv6,
@@ -69,7 +69,7 @@ __always_inline static bool encap_v6(
 
 //~
 //ipip encap
-__always_inline static bool encap_v4(
+__attribute__((__always_inline__)) static inline bool encap_v4(
     struct xdp_md* ctx,
     struct ctl_value* cval,
     bool is_ipv6,
@@ -119,10 +119,11 @@ __always_inline static bool encap_v4(
  * @param isnner_ipv4 是否为内层IPv4协议
  * @return true 修改成功，false 修改失败
  */
-__always_inline static bool decap_v6(struct xdp_md *xdp,
+__attribute__((__always_inline__)) static inline bool 
+                                    decap_v6(struct xdp_md *xdp,
                                     void **data,
                                     void **data_end,
-                                    bool isnner_ipv4) {
+                                    bool isnner_ipv4) {//---------------√
     struct ethhdr *eth_new;
     struct ethhdr *eth_old;
     eth_old = *data;
@@ -151,9 +152,9 @@ __always_inline static bool decap_v6(struct xdp_md *xdp,
  * @param data_end 指向数据包尾部的指针 
  * @return true 修改成功，false 修改失败
  */
-__always_inline static bool decap_v4(struct xdp_md *xdp,
+__attribute__((__always_inline__)) static inline bool decap_v4(struct xdp_md *xdp,
                                      void **data,
-                                     void **data_end) {
+                                     void **data_end) {//---------------√
     struct ethhdr *eth_new;
     struct ethhdr *eth_old;
     eth_old = *data;
@@ -174,7 +175,8 @@ __always_inline static bool decap_v4(struct xdp_md *xdp,
 
 #ifdef INLINE_DECAP_GUE //inline_decap_gue
 //~
-__always_inline static bool gue_decap_v4(struct xdp_md *xdp, void **data, void **data_end) {
+__attribute__((__always_inline__)) static inline bool
+ gue_decap_v4(struct xdp_md *xdp, void **data, void **data_end) {//---------------√
     struct ethhdr *eth_new;
     struct ethhdr *eth_old;
     eth_old = *data;
@@ -183,7 +185,7 @@ __always_inline static bool gue_decap_v4(struct xdp_md *xdp, void **data, void *
     memcpy(eth_new->h_source, eth_old->h_source, 6);
     memcpy(eth_new->h_dest, eth_old->h_dest, 6);
     eth_new->h_proto = BE_ETH_P_IP;
-    if(XDP_ADJUST_HEAD_FUNC(xdp, sizeof(struct iphdr) + sizeof(struct udphdr))) {
+    if(XDP_ADJUST_HEAD_FUNC(xdp, (int)(sizeof(struct iphdr) + sizeof(struct udphdr)))) {
         return false;
     }
 
@@ -193,7 +195,8 @@ __always_inline static bool gue_decap_v4(struct xdp_md *xdp, void **data, void *
 }
 
 //~
-__always_inline static bool gue_decap_v6(struct xdp_md *xdp, void **data, void **data_end, bool inner_v4) {
+__attribute__((__always_inline__)) static inline bool
+ gue_decap_v6(struct xdp_md *xdp, void **data, void **data_end, bool inner_v4) {//---------------√
     struct ethhdr *eth_new;
     struct ethhdr *eth_old;
     eth_old = *data;
