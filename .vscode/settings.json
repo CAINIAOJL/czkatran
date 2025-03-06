@@ -122,7 +122,10 @@
     "udp.h": "c",
     "healthchecking.maps.h": "c",
     "healthchecking_helpers.h": "c",
-    "healthchecking_structs.h": "c"
+    "healthchecking_structs.h": "c",
+    "__tree": "cpp",
+    "queue": "cpp",
+    "stack": "cpp"
   },
   "C_Cpp_Runner.msvcBatchPath": "",
   "C_Cpp_Runner.cCompilerPath": "gcc",
@@ -181,5 +184,6 @@
   "C_Cpp_Runner.showCompilationTime": false,
   "C_Cpp_Runner.useLinkTimeOptimization": false,
   "C_Cpp_Runner.msvcSecureNoWarnings": false,
-  "cmake.ignoreCMakeListsMissing": true
+  "cmake.ignoreCMakeListsMissing": true,
+  "C_Cpp.errorSquiggles": "enabled"
 }
