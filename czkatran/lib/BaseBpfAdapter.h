@@ -309,6 +309,8 @@ class BaseBpfAdapter {
             const int direction = TC_INGRESS,
             const uint32_t handle = 0);
 
+        static int pinBpfObject(int fd, const std::string& path);
+
 //------------------------------------2025-2-17-------------------------------
 
         virtual int getBpfMapMaxSize(const std::string& name);

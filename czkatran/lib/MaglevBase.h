@@ -13,7 +13,7 @@ class MaglevBase: public ConsistentHashing {
         MaglevBase() {}
 
     /**
-     * @brief 为每个后端节点生成一个偏好序列
+     * @brief 为每个后端节点生成一个偏好序列的offset和skip特征值
      * @param permutation: the container of the generated permutation. 又称偏好序列
      * @param endpoints: the endpoints of the service. 权重
      * @param pos: the postion of the endpoint in the ring. 位置

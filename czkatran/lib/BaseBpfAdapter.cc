@@ -9,6 +9,7 @@
 #include <folly/ScopeGuard.h>
 
 
+#include <ctime>
 
 
 extern "C" {
@@ -496,5 +497,11 @@ int BaseBpfAdapter:: addTcBpfFilter(//--------------------------√
     );
 }
 //------------------------------------2025-2-17/9-------------------------------
+
+int BaseBpfAdapter:: pinBpfObject(int fd, const std::string& path)
+{
+    return bpf_obj_pin(fd, path.c_str());
+}
+
 
 }

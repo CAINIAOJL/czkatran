@@ -1,10 +1,10 @@
 set -xeo pipefail
 
 create_grpc_proto() {
-    rm -rf goclient/src/czKatranc/lb_czKatran
-    mkdir -p goclient/src/czKatranc/lb_czKatran
-    protoc -I protos czkatran.proto --go_out=goclient/src/czKatranc/lb_czKatran --go_grpc_out=goclient/src/czKatranc/lb_czKatran
-    protoc -I protos czkatran.proto --plugin=protoc-gen-grpc=/usr/bin/grpc_cpp_plugin --cpp_out=goclient/src/czKatranc/lb_czKatran --grpc_out=goclient/src/czKatranc/lb_czKatran
+    rm -rf goclient/src/czkatranc/lb_czKatran
+    mkdir -p goclient/src/czkatranc/lb_czKatran
+    protoc -I protos czkatran.proto --go_out=goclient/src/czkatranc/lb_czKatran --go_grpc_out=goclient/src/czkatranc/lb_czKatran
+    protoc -I protos czkatran.proto --plugin=protoc-gen-grpc=/usr/bin/grpc_cpp_plugin --cpp_out=goclient/src/czkatranc/lb_czKatran --grpc_out=goclient/src/czkatranc/lb_czKatran
 }
 echo '
 if you see “protoc-gen-go_grpc: program not found or is not executable
