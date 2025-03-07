@@ -1,0 +1,2 @@
+/usr/bin/ar qc libczkatran_test_util.a CMakeFiles/czkatran_test_util.dir/czkatranTestUtil.o
+/usr/bin/ranlib libczkatran_test_util.a

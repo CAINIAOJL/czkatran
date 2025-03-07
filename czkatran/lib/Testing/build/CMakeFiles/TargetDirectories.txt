@@ -1,0 +1,8 @@
+/home/jianglei/czkatran/czkatran/lib/Testing/build/CMakeFiles/base64_helpers.dir
+/home/jianglei/czkatran/czkatran/lib/Testing/build/CMakeFiles/pcap_parser.dir
+/home/jianglei/czkatran/czkatran/lib/Testing/build/CMakeFiles/bpftester.dir
+/home/jianglei/czkatran/czkatran/lib/Testing/build/CMakeFiles/czkatran_test_provision.dir
+/home/jianglei/czkatran/czkatran/lib/Testing/build/CMakeFiles/czkatran_test_util.dir
+/home/jianglei/czkatran/czkatran/lib/Testing/build/CMakeFiles/czkatran_tester.dir
+/home/jianglei/czkatran/czkatran/lib/Testing/build/CMakeFiles/edit_cache.dir
+/home/jianglei/czkatran/czkatran/lib/Testing/build/CMakeFiles/rebuild_cache.dir

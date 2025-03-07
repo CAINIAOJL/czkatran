@@ -1,6 +1,6 @@
-if(NOT BUILD_TESTS)
-    return()
-endif()
+#if(NOT BUILD_TESTS)
+#    return()
+#endif()
 
 #include(czkatranTest)
 
@@ -10,9 +10,14 @@ add_library(base64_helpers STATIC
 )
 
 target_link_libraries(base64_helpers
-    "glog::glog"
+    #"glog::glog"
+    #-lglog
+    #-lfolly
+    ${FOLLY}
+    ${GLOG}
+    #-lgflags
     "${GFLAGS}"
-    "Folly::folly"
+    #"Folly::folly"
     "${BOOST_SYSTEM}"
     "czkatranlb"
 )
@@ -31,8 +36,14 @@ add_library(pcap_parser STATIC
 target_link_libraries(pcap_parser
     base64_helpers
     pcapwriter
-    "Folly::folly"
-    "glog::glog"
+    #"Folly::folly"
+    #"glog::glog"
+    #-lglog
+    #-lfolly
+    #-lgflags
+    ${FLOLLY}
+    ${GLOG}
+    ${GFLAGS}
     "${BOOST_SYSTEM}"
 )
 
@@ -42,8 +53,14 @@ add_library(bpftester STATIC
 )
 
 target_link_libraries(bpftester
-    "Folly::folly"
-    "glog::glog"
+    #"Folly::folly"
+    #"glog::glog"
+    #-lglog
+    #-lfolly
+    #-lgflags
+    ${FLOLLY}
+    ${GLOG}
+    ${GFLAGS}
     pcap_parser
     bpfadapter
 )
@@ -54,10 +71,14 @@ add_test(TARGET base64_helpers-tests
     DEPENDS
     base64_helpers
     czkatranlb
+    ${FOLLY}
     ${GTEST}
-    "glog::glog"
+    #"glog::glog"
     ${GFLAGS}
-    "Folly::folly"
+    #"Folly::folly"
+    #-lglog
+    #-lfolly
+    #-lgflags
     ${LIBUNWIND}
     INCLUDES
     base64_helpers
@@ -81,22 +102,23 @@ target_link_libraries(czkatran_test_util
     bpftester
 )
 
-#add_executable(czkatran_tester
-#    czkatran_testing.cc
-#)
+add_executable(czkatran_tester
+    czkatran_testing.cc
+)
 
-#target_link_libraries(czkatran_tester
-#    czkatranlb
-#    bpftester
-#    czkatran_test_provision
-#    czkatran_test_util
-#    ${GFLAGS}
-#    ${GTEST}
-#)
+target_link_libraries(czkatran_tester
+    czkatranlb
+    bpftester
+    czkatran_test_provision
+    czkatran_test_util
+    ${FOLLY}
+    ${GFLAGS}
+    ${GTEST}
+)
 
-#target_include_directories(czkatran_tester PRIVATE
-#    ${BPF_INCLUDE_DIRS}
-#    ${GTEST_INCLUDE_DIR}
-#    ${FOLLY_INCLUDE_DIR}
-#    ${CZKATRAN_INCLUDE_DIR}
-#)
+target_include_directories(czkatran_tester PRIVATE
+    ${BPF_INCLUDE_DIRS}
+    ${GTEST_INCLUDE_DIR}
+    ${FOLLY_INCLUDE_DIR}
+    ${CZKATRAN_INCLUDE_DIR}
+)

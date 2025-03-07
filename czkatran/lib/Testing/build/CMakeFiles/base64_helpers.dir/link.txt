@@ -1,0 +1,2 @@
+/usr/bin/ar qc libbase64_helpers.a CMakeFiles/base64_helpers.dir/Base64Helpers.o
+/usr/bin/ranlib libbase64_helpers.a

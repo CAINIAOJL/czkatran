@@ -1,0 +1,2 @@
+/usr/bin/ar qc libpcap_parser.a CMakeFiles/pcap_parser.dir/PcapParser.o
+/usr/bin/ranlib libpcap_parser.a

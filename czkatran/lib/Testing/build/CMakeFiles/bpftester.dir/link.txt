@@ -1,0 +1,2 @@
+/usr/bin/ar qc libbpftester.a CMakeFiles/bpftester.dir/BpfTester.o
+/usr/bin/ranlib libbpftester.a

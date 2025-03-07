@@ -6,8 +6,12 @@
 //#include "/home/jianglei/czkatran/czkatran/lib/czkatranLb.h"
 //#include "/home/jianglei/czkatran/czkatran/lib/Testing/czkatranTestProvision.h"
 
-#include "/home/cainiao/czkatran/czkatran/lib/czkatranLb.h"
-#include "/home/cainiao/czkatran/czkatran/lib/Testing/czkatranTestProvision.h"
+//#include "/home/cainiao/czkatran/czkatran/lib/czkatranLb.h"
+//#include "/home/cainiao/czkatran/czkatran/lib/Testing/czkatranTestProvision.h"
+
+#include "/home/jianglei/czkatran/czkatran/lib/czkatranLb.h"
+#include "/home/jianglei/czkatran/czkatran/lib/czkatranLbStructs.h"
+#include "czkatranTestProvision.h"
 
 
 namespace czkatran {
